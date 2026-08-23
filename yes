@@ -1,0 +1,409 @@
+[33mcommit 53b085abde142b52dbd7b292a3d529ef1b22672d[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m
+Author:     Your Name <you@example.com>
+AuthorDate: Fri Jul 31 00:28:52 2026 +0530
+Commit:     Your Name <you@example.com>
+CommitDate: Fri Jul 31 00:28:52 2026 +0530
+
+    Deepfake detection ssystem
+
+[1mdiff --git a/.claude/settings.local.json b/.claude/settings.local.json[m
+[1mnew file mode 100644[m
+[1mindex 0000000..aff4d12[m
+[1m--- /dev/null[m
+[1m+++ b/.claude/settings.local.json[m
+[36m@@ -0,0 +1,11 @@[m
+[32m+[m[32m{[m
+[32m+[m[32m  "permissions": {[m
+[32m+[m[32m    "allow": [[m
+[32m+[m[32m      "PowerShell(python -m py_compile app.py app\\\\demo.py app\\\\quick_eval.py src\\\\*.py; if \\($?\\) { \"COMPILE OK\" })",[m
+[32m+[m[32m      "PowerShell(python -m py_compile app.py app\\\\demo.py app\\\\quick_eval.py src\\\\dataset.py src\\\\evaluate.py src\\\\face_extractor.py src\\\\gradcam_utils.py src\\\\make_split_csv.py src\\\\model.py src\\\\train.py; if \\($?\\) { \"COMPILE OK\" })",[m
+[32m+[m[32m      "PowerShell(python -c \"import torch,timm,albumentations,cv2,streamlit,sklearn,pandas; print\\('torch',torch.__version__\\); print\\('timm',timm.__version__\\); print\\('albu',albumentations.__version__\\); print\\('cv2',cv2.__version__\\); print\\('st',streamlit.__version__\\)\")",[m
+[32m+[m[32m      "PowerShell(python -c \"import sys; sys.path.append\\('.'\\); import src.model, src.dataset, src.gradcam_utils, src.evaluate, src.train, src.face_extractor; print\\('IMPORTS OK'\\)\")",[m
+[32m+[m[32m      "PowerShell(Get-ChildItem -Force -Directory | Select-Object -Expand Name; python -c \"import sys;print\\(sys.executable\\)\")"[m
+[32m+[m[32m    ][m
+[32m+[m[32m  }[m
+[32m+[m[32m}[m
+[1mdiff --git a/.dockerignore b/.dockerignore[m
+[1mnew file mode 100644[m
+[1mindex 0000000..21c9df8[m
+[1m--- /dev/null[m
+[1m+++ b/.dockerignore[m
+[36m@@ -0,0 +1,22 @@[m
+[32m+[m[32m# Keep the Docker build context small.[m
+[32m+[m[32m.git[m
+[32m+[m[32m.venv[m
+[32m+[m[32menv[m
+[32m+[m[32m__pycache__[m
+[32m+[m[32m*.pyc[m
+[32m+[m[32m.pytest_cache[m
+[32m+[m[32m.ipynb_checkpoints[m
+[32m+[m
+[32m+[m[32m# Datasets and large artifacts (mount / download at runtime instead)[m
+[32m+[m[32mdata/[m
+[32m+[m[32mnotebooks/[m
+[32m+[m[32muploads/*[m
+[32m+[m[32moutputs/*[m
+[32m+[m[32mlogs/*[m
+[32m+[m[32mresults/*[m
+[32m+[m[32m!**/.gitkeep[m
+[32m+[m
+[32m+[m[32m# Local editor / OS[m
+[32m+[m[32m.vscode[m
+[32m+[m[32m.idea[m
+[32m+[m[32m.DS_Store[m
+[1mdiff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml[m
+[1mnew file mode 100644[m
+[1mindex 0000000..27766cc[m
+[1m--- /dev/null[m
+[1m+++ b/.github/workflows/ci.yml[m
+[36m@@ -0,0 +1,44 @@[m
+[32m+[m[32mname: CI[m
+[32m+[m
+[32m+[m[32m# Run the test suite on every push / PR to main.[m
+[32m+[m[32mon:[m
+[32m+[m[32m  push:[m
+[32m+[m[32m    branches: [main][m
+[32m+[m[32m  pull_request:[m
+[32m+[m[32m    branches: [main][m
+[32m+[m[32m  workflow_dispatch:[m
+[32m+[m
+[32m+[m[32mjobs:[m
+[32m+[m[32m  test:[m
+[32m+[m[32m    runs-on: ubuntu-latest[m
+[32m+[m[32m    timeout-minutes: 30[m
+[32m+[m
+[32m+[m[32m    steps:[m
+[32m+[m[32m      - name: Checkout[m
+[32m+[m[32m        uses: actions/checkout@v4[m
+[32m+[m
+[32m+[m[32m      - name: Set up Python 3.11[m
+[32m+[m[32m        uses: actions/setup-python@v5[m
+[32m+[m[32m        with:[m
+[32m+[m[32m          python-version: "3.11"[m
+[32m+[m[32m          cache: pip[m
+[32m+[m
+[32m+[m[32m      - name: Install system dependencies (OpenCV / audio / video)[m
+[32m+[m[32m        run: |[m
+[32m+[m[32m          sudo apt-get update[m
+[32m+[m[32m          sudo apt-get install -y --no-install-recommends libgl1 libglib2.0-0 libsndfile1 ffmpeg[m
+[32m+[m
+[32m+[m[32m      - name: Install CPU PyTorch[m
+[32m+[m[32m        run: |[m
+[32m+[m[32m          python -m pip install --upgrade pip[m
+[32m+[m[32m          pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu[m
+[32m+[m
+[32m+[m[32m      - name: Install project dependencies[m
+[32m+[m[32m        run: pip install -r requirements.txt[m
+[32m+[m
+[32m+[m[32m      - name: Run tests[m
+[32m+[m[32m        run: pytest -q[m
+[32m+[m
+[32m+[m[32m      - name: Smoke-check module imports[m
+[32m+[m[32m        run: |[m
+[32m+[m[32m          python -c "from api.main import app; from src.inference import FaceDetector; from src.trust_score import aggregate_trust; print('imports ok')"[m
+[1mdiff --git a/.gitignore b/.gitignore[m
+[1mnew file mode 100644[m
+[1mindex 0000000..841febf[m
+[1m--- /dev/null[m
+[1m+++ b/.gitignore[m
+[36m@@ -0,0 +1,40 @@[m
+[32m+[m[32m# Virtual Environment[m
+[32m+[m[32m.venv/[m
+[32m+[m[32menv/[m
+[32m+[m
+[32m+[m[32m# VS Code[m
+[32m+[m[32m.vscode/[m
+[32m+[m
+[32m+[m[32m# Python[m
+[32m+[m[32m__pycache__/[m
+[32m+[m[32m*.pyc[m
+[32m+[m[32m.ipynb_checkpoints/[m
+[32m+[m
+[32m+[m[32m# Dataset[m
+[32m+[m[32mdata/[m
+[32m+[m
+[32m+[m[32m# Results / runtime artifacts (keep the folders, ignore contents)[m
+[32m+[m[32mresults/*[m
+[32m+[m[32m!results/.gitkeep[m
+[32m+[m[32muploads/*[m
+[32m+[m[32m!uploads/.gitkeep[m
+[32m+[m[32moutputs/*[m
+[32m+[m[32m!outputs/.gitkeep[m
+[32m+[m[32mlogs/*[m
+[32m+[m[32m!logs/.gitkeep[m
+[32m+[m
+[32m+[m[32m# Databases[m
+[32m+[m[32m*.db[m
+[32m+[m[32m*.sqlite[m
+[32m+[m[32m*.sqlite3[m
+[32m+[m
+[32m+[m[32m# Model weights[m
+[32m+[m[32m*.pth[m
+[32m+[m[32m*.pt[m
+[32m+[m
+[32m+[m[32m# Zip files[m
+[32m+[m[32m*.zip[m
+[32m+[m
+[32m+[m[32m# OS / test caches[m
+[32m+[m[32m.pytest_cache/[m
+[32m+[m[32m.DS_Store[m
+\ No newline at end of file[m
+[1mdiff --git a/DEPLOYMENT.md b/DEPLOYMENT.md[m
+[1mnew file mode 100644[m
+[1mindex 0000000..385294f[m
+[1m--- /dev/null[m
+[1m+++ b/DEPLOYMENT.md[m
+[36m@@ -0,0 +1,145 @@[m
+[32m+[m[32m# 🚀 Deployment Guide[m
+[32m+[m
+[32m+[m[32mThe **Gradio KYC app** (`app/gradio_app.py`) is the primary web entry point for[m
+[32m+[m[32mdeployment. It reads the `PORT` environment variable and binds to `0.0.0.0`, so[m
+[32m+[m[32mit works out-of-the-box on every platform below. Provide your trained checkpoint[m
+[32m+[m[32mat `models/best_xception_celebdf.pth` (gitignored) or set `DEEPFAKE_CHECKPOINT`.[m
+[32m+[m
+[32m+[m[32mEntry points:[m
+[32m+[m[32m- **Gradio UI** → `python app/gradio_app.py` (port 7860 locally, `$PORT` in cloud)[m
+[32m+[m[32m- **Streamlit UI** → `streamlit run app/streamlit_app.py` (8501)[m
+[32m+[m[32m- **REST API** → `uvicorn api.main:app` (8000, Swagger at `/docs`)[m
+[32m+[m
+[32m+[m[32m---[m
+[32m+[m
+[32m+[m[32m## 1) 🤗 Hugging Face Spaces (Gradio SDK)[m
+[32m+[m
+[32m+[m[32mSpaces reads front matter from the repo's `README.md`. Because our default[m
+[32m+[m[32m`app.py` is the Streamlit app, point the Space at the Gradio file with[m
+[32m+[m[32m`app_file`. Create the Space (SDK = Gradio) and make its `README.md` start with:[m
+[32m+[m
+[32m+[m[32m```yaml[m
+[32m+[m[32m---[m
+[32m+[m[32mtitle: Deepfake Detection KYC[m
+[32m+[m[32memoji: 🕵️[m
+[32m+[m[32mcolorFrom: indigo[m
+[32m+[m[32mcolorTo: purple[m
+[32m+[m[32msdk: gradio[m
+[32m+[m[32msdk_version: 6.20.0[m
+[32m+[m[32mapp_file: app/gradio_app.py[m
+[32m+[m[32mpinned: false[m
+[32m+[m[32m---[m
+[32m+[m[32m```[m
+[32m+[m
+[32m+[m[32mSteps:[m
+[32m+[m[32m1. Create a new **Gradio** Space on huggingface.co.[m
+[32m+[m[32m2. Push this repository to it (`git remote add space https://huggingface.co/spaces/<user>/<name>` → `git push space main`).[m
+[32m+[m[32m3. Upload the checkpoint to the Space (via the UI or `huggingface_hub`), or load[m
+[32m+[m[32m   it from the Hub at startup.[m
+[32m+[m[32m4. The Space installs `requirements.txt` and launches `app/gradio_app.py`.[m
+[32m+[m
+[32m+[m[32m> Tip: for GPU, select a GPU hardware tier in the Space settings; the app uses[m
+[32m+[m[32m> CUDA automatically when available.[m
+[32m+[m
+[32m+[m[32m---[m
+[32m+[m
+[32m+[m[32m## 2) 🎨 Render[m
+[32m+[m
+[32m+[m[32mA blueprint is provided in **`render.yaml`**.[m
+[32m+[m
+[32m+[m[32m1. Push the repo to GitHub.[m
+[32m+[m[32m2. Render dashboard → **New + → Blueprint** → select this repo.[m
+[32m+[m[32m3. Render builds (installs CPU PyTorch + `requirements.txt`) and runs[m
+[32m+[m[32m   `python app/gradio_app.py`, injecting `$PORT`.[m
+[32m+[m
+[32m+[m[32mNotes:[m
+[32m+[m[32m- Use at least the **Starter** plan — PyTorch needs more memory/build time than[m
+[32m+[m[32m  the free tier allows.[m
+[32m+[m[32m- Add the checkpoint via a **persistent disk** mounted at `models/`, or bake it[m
+[32m+[m[32m  into a custom Docker image (Render also supports `Dockerfile` deploys).[m
+[32m+[m
+[32m+[m[32m---[m
+[32m+[m
+[32m+[m[32m## 3) 🚄 Railway[m
+[32m+[m
+[32m+[m[32mConfig is provided in **`railway.json`** (Nixpacks) and **`Procfile`**.[m
+[32m+[m
+[32m+[m[32m1. `railway init` (or connect the GitHub repo in the Railway dashboard).[m
+[32m+[m[32m2. Railway builds with Nixpacks and runs `python app/gradio_app.py`.[m
+[32m+[m[32m3. It injects `$PORT`, which the app honours.[m
+[32m+[m
+[32m+[m[32mTo run the **API** instead of the UI, change the start command to[m
+[32m+[m[32m`uvicorn api.main:app --host 0.0.0.0 --port $PORT` (see the `api` line in `Procfile`).[m
+[32m+[m
+[32m+[m[32m---[m
+[32m+[m
+[32m+[m[32m## 4) 🐳 Docker / Docker Compose[m
+[32m+[m
+[32m+[m[32mSingle container (Gradio):[m
+[32m+[m
+[32m+[m[32m```bash[m
+[32m+[m[32mdocker build -t deepfake-detection .[m
+[32m+[m[32mdocker run -p 7860:7860 -e PORT=7860 \[m
+[32m+[m[32m    -v $(pwd)/models:/app/models \[m
+[32m+[m[32m    deepfake-detection python app/gradio_app.py[m
+[32m+[m[32m```[m
+[32m+[m
+[32m+[m[32mAll services at once (API + Streamlit + Gradio):[m
+[32m+[m
+[32m+[m[32m```bash[m
+[32m+[m[32mdocker compose up --build[m
+[32m+[m[32m# API     -> http://localhost:8000/docs[m
+[32m+[m[32m# Streamlit -> http://localhost:8501[m
+[32m+[m[32m# Gradio  -> http://localhost:7860[m
+[32m+[m[32m```[m
+[32m+[m
+[32m+[m[32m`.dockerignore` keeps datasets and runtime artifacts out of the build context.[m
+[32m+[m
+[32m+[m[32m---[m
+[32m+[m
+[32m+[m[32m## Environment variables[m
+[32m+[m
+[32m+[m[32m| Variable | Default | Purpose |[m
+[32m+[m[32m|---|---|---|[m
+[32m+[m[32m| `PORT` | `7860` | Web port (set automatically by Render/Railway/HF) |[m
+[32m+[m[32m| `DEEPFAKE_CHECKPOINT` | `models/best_xception_celebdf.pth` | Model weights path |[m
+[32m+[m[32m| `DEEPFAKE_CHECKPOINT_URL` | _(unset)_ | Direct HTTPS URL to auto-download weights on startup |[m
+[32m+[m[32m| `DEEPFAKE_HF_REPO` | _(unset)_ | Hugging Face repo id to auto-download weights from |[m
+[32m+[m[32m| `DEEPFAKE_HF_FILENAME` | checkpoint basename | File to fetch from the HF repo |[m
+[32m+[m[32m| `DEEPFAKE_HF_REVISION` | _(unset)_ | Optional HF branch/tag/commit |[m
+[32m+[m[32m| `DEEPFAKE_MODEL_NAME` | `xception` | Backbone architecture |[m
+[32m+[m[32m| `DEEPFAKE_FACE_DETECTOR` | `mtcnn` | `mtcnn`, `haar`, or `auto` |[m
+[32m+[m[32m| `DEEPFAKE_DB` | `results/predictions.db` | SQLite history location |[m
+[32m+[m[32m| `DEEPFAKE_API_KEY` | _(unset)_ | If set, inference endpoints require header `X-API-Key` |[m
+[32m+[m[32m| `DEEPFAKE_RATE_LIMIT` | `0` | Max requests/min per client (0 = unlimited) |[m
+[32m+[m[32m| `DEEPFAKE_ADMIN_USER` | `admin` | Default UI login username (bootstrapped on first run) |[m
+[32m+[m[32m| `DEEPFAKE_ADMIN_PASSWORD` | `admin123` | Default UI login password — **change in production** |[m
+[32m+[m[32m| `DEEPFAKE_DISABLE_LOGIN` | _(unset)_ | Set to `1` to disable the Gradio login page (public demo) |[m
+[32m+[m
+[32m+[m[32m---[m
+[32m+[m
+[32m+[m[32m## Checkpoint auto-download (recommended for cloud)[m
+[32m+[m
+[32m+[m[32m`models/*.pth` is gitignored (weights are large). Instead of baking the file in,[m
+[32m+[m[32mlet the app fetch it on first startup by setting **one** of these env vars:[m
+[32m+[m
+[32m+[m[32m```bash[m
+[32m+[m[32m# Option A — direct URL (no extra dependency)[m
+[32m+[m[32mexport DEEPFAKE_CHECKPOINT_URL="https://example.com/best_xception_celebdf.pth"[m
+[32m+[m
+[32m+[m[32m# Option B — Hugging Face Hub (needs huggingface_hub, already in requirements.txt)[m
+[32m+[m[32mexport DEEPFAKE_HF_REPO="your-username/deepfake-xception"[m
+[32m+[m[32m# export DEEPFAKE_HF_FILENAME="best_xception_celebdf.pth"   # defaults to the checkpoint basename[m
+[32m+[m[32m# export DEEPFAKE_HF_REVISION="main"                        # optional[m
+[32m+[m[32m```[m
+[32m+[m
+[32m+[m[32mThe first prediction (or `python -m src.checkpoint`) downloads the file to[m
+[32m+[m[32m`models/` and every entry point — Gradio, Streamlit, FastAPI, CLI — uses it.[m
+[32m+[m[32mTrigger it manually with:[m
+[32m+[m
+[32m+[m[32m```bash[m
+[32m+[m[32mpython -m src.checkpoint[m
+[32m+[m[32m```[m
+[32m+[m
+[32m+[m[32mWithout a checkpoint (and no download source), the apps still start and render[m
+[32m+[m[32mbut show a clear "model not found" message instead of predictions.[m
+[1mdiff --git a/Dockerfile b/Dockerfile[m
+[1mnew file mode 100644[m
+[1mindex 0000000..c2ad790[m
+[1m--- /dev/null[m
+[1m+++ b/Dockerfile[m
+[36m@@ -0,0 +1,37 @@[m
+[32m+[m[32m# AI-Powered Explainable Deepfake Detection System[m
+[32m+[m[32m# Single image that can run either the FastAPI service or the Streamlit UI[m
+[32m+[m[32m# (selected by the command in docker-compose.yml).[m
+[32m+[m
+[32m+[m[32mFROM python:3.11-slim[m
+[32m+[m
+[32m+[m[32m# System libraries required by OpenCV, video/audio decoding, and soundfile.[m
+[32m+[m[32mRUN apt-get update && apt-get install -y --no-install-recommends \[m
+[32m+[m[32m        libgl1 \[m
+[32m+[m[32m        libglib2.0-0 \[m
+[32m+[m[32m        libsndfile1 \[m
+[32m+[m[32m        ffmpeg \[m
+[32m+[m[32m    && rm -rf /var/lib/apt/lists/*[m
+[32m+[m
+[32m+[m[32mENV PYTHONUNBUFFERED=1 \[m
+[32m+[m[32m    PYTHONDONTWRITEBYTECODE=1 \[m
+[32m+[m[32m    PIP_NO_CACHE_DIR=1[m
+[32m+[m
+[32m+[m[32mWORKDIR /app[m
+[32m+[m
+[32m+[m[32m# Install CPU PyTorch wheels + the rest of the requirements.[m
+[32m+[m[32mCOPY requirements.txt .[m
+[32m+[m[32mRUN pip install --upgrade pip \[m
+[32m+[m[32m    && pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu \[m
+[32m+[m[32m    && pip install -r requirements.txt[m
+[32m+[m
+[32m+[m[32m# Copy the application source.[m
+[32m+[m[32mCOPY . .[m
+[32m+[m
+[32m+[m[32m# Runtime directories (also created by src/config.py at import time).[m
+[32m+[m[32mRUN mkdir -p models uploads outputs logs results[m
+[32m+[m
+[32m+[m[32m# FastAPI (8000) and Streamlit (8501)[m
+[32m+[m[32mEXPOSE 8000 8501[m
+[32m+[m
+[32m+[m[32m# Default command runs the API; docker-compose overrides for the UI service.[m
+[32m+[m[32mCMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"][m
+[1mdiff --git a/Procfile b/Procfile[m
+[1mnew file mode 100644[m
+[1mindex 0000000..e54435d[m
+[1m--- /dev/null[m
+[1m+++ b/Procfile[m
+[36m@@ -0,0 +1,2 @@[m
+[32m+[m[32mweb: python app/gradio_app.py[m
+[32m+[m[32mapi: uvicorn api.main:app --host 0.0.0.0 --port $PORT[m
+[1mdiff --git a/README.md b/README.md[m
+[1mnew file mode 100644[m
+[1mindex 0000000..55b4ac4[m
+[1m--- /dev/null[m
+[1m+++ b/README.md[m
+[36m@@ -0,0 +1,384 @@[m
+[32m+[m[32m# 🕵️ AI-Powered Explainable Deepfake Detection System[m
+[32m+[m
+[32m+[m[32mDetect whether an **image**, **video**, or **live webcam** stream is **REAL** or a **DEEPFAKE** — with confidence scores and visual **Grad-CAM** explanations of *why*.[m
+[32m+[m
+[32m+[m[32mA modular, production-style system built with **PyTorch, OpenCV, Streamlit, FastAPI, SQLite, and Docker**, suitable for a final-year B.Tech AI/ML project and placement portfolio.[m
+[32m+[m
+[32m+[m[32m---[m
+[32m+[m
+[32m+[m[32m## ✨ Features[m
+[32m+[m
+[32m+[m[32m| Capability | Description |[m
+[32m+[m[32m|---|---|[m
+[32m+[m[32m| 📷 **Image detection** | Upload JPG/PNG → face detection → crop → resize → inference → REAL/FAKE + confidence |[m
+[32m+[m[32m| 🎬 **Video detection** | Frame sampling → per-frame inference → **majority voting** + frame statistics |[m
+[32m+[m[32m| 📹 **Real-time webcam** | Live bounding box, label, confidence, and FPS (desktop + in-browser) |[m
+[32m+[m[32m| 🔥 **Explainable AI** | **Grad-CAM** heatmap overlay comparing original vs. model attention |[m
+[32m+[m[32m| 🗂️ **Prediction history** | Every result stored in **SQLite** (file, prediction, confidence, time, date) |[m
+[32m+[m[32m| 📊 **Dashboard** | Aggregate analytics (real/fake counts, avg confidence, avg latency) |[m
+[32m+[m[32m| 🌐 **REST API** | **FastAPI** with auto-generated Swagger docs |[m
+[32m+[m[32m| 🐳 **Docker** | One-command deployment of API + UI via Docker Compose |[m
+[32m+[m[32m| 🔐 **User login** | Auth-gated UI (hashed passwords in SQLite) on Streamlit & Gradio |[m
+[32m+[m[32m| 🔊 **Audio (bonus)** | Voice-clone detection + audio/video score **fusion** (see `src/audio_*`) |[m
+[32m+[m[32m| 🛡️ **AI Trust Score** | 0–100 authenticity score fusing face, temporal, lip-sync & texture signals |[m
+[32m+[m[32m| 📄 **PDF report** | Exportable authenticity report (verdict, sub-scores, hash, recommendation) |[m
+[32m+[m[32m| ⚙️ **ONNX export** | Edge/cross-runtime model export (`src/export_onnx.py`) |[m
+[32m+[m[32m| 🛡️ **Robustness benchmark** | Eval under compression/blur/noise/crop/resize (`src/robustness.py`) |[m
+[32m+[m[32m| ✅ **CI** | GitHub Actions runs the test suite on every push |[m
+[32m+[m
+[32m+[m[32m---[m
+[32m+[m
+[32m+[m[32m## 🏗️ Architecture[m
+[32m+[m
+[32m+[m[32m```[m
+[32m+[m[32m                ┌──────────────────────────────────────────────┐[m
+[32m+[m[32m                │                Streamlit UI                  │[m
+[32m+[m[32m                │  Home · Image · Video · Webcam · Grad-CAM ·  │[m
+[32m+[m[32m                │        History · Dashboard · About           │[m
+[32m+[m[32m                └───────────────┬──────────────────────────────┘[m
+[32m+[m[32m                                │[m
+[32m+[m[32m        ┌───────────────────────┼───────────────────────┐[m
+[32m+[m[32m        │                       │                        │[m
+[32m+[m[32m┌───────▼────────┐   ┌──────────▼─────────┐   ┌──────────▼─────────┐[m
+[32m+[m[32m│  FastAPI (API) │   │  Inference Engine  │   │   Grad-CAM (XAI)   │[m
+[32m+[m[32m│  /predict/*    │──▶│  DeepfakeDetector  │◀──│ GradCAMExplainer   │[m
+[32m+[m[32m│  /health /info │   │  + FaceDetector    │   └────────────────────┘[m
+[32m+[m[32m└───────┬────────┘   └──────────┬─────────┘[m
+[32m+[m[32m        │                       │[m
+[32m+[m[32m        │              ┌────────▼─────────┐      ┌──────────────────┐[m
+[32m+[m[32m        └─────────────▶│  SQLite history  │      │  XceptionNet     │[m
+[32m+[m[32m                       │  predictions.db  │      │  (PyTorch/timm)  │[m
+[32m+[m[32m               

@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(python -m py_compile app.py app\\\\demo.py app\\\\quick_eval.py src\\\\*.py; if \\($?\\) { \"COMPILE OK\" })",
+      "PowerShell(python -m py_compile app.py app\\\\demo.py app\\\\quick_eval.py src\\\\dataset.py src\\\\evaluate.py src\\\\face_extractor.py src\\\\gradcam_utils.py src\\\\make_split_csv.py src\\\\model.py src\\\\train.py; if \\($?\\) { \"COMPILE OK\" })",
+      "PowerShell(python -c \"import torch,timm,albumentations,cv2,streamlit,sklearn,pandas; print\\('torch',torch.__version__\\); print\\('timm',timm.__version__\\); print\\('albu',albumentations.__version__\\); print\\('cv2',cv2.__version__\\); print\\('st',streamlit.__version__\\)\")",
+      "PowerShell(python -c \"import sys; sys.path.append\\('.'\\); import src.model, src.dataset, src.gradcam_utils, src.evaluate, src.train, src.face_extractor; print\\('IMPORTS OK'\\)\")",
+      "PowerShell(Get-ChildItem -Force -Directory | Select-Object -Expand Name; python -c \"import sys;print\\(sys.executable\\)\")"
+    ]
+  }
+}

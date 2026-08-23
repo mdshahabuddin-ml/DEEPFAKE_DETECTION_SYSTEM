@@ -1,0 +1,51 @@
+# Virtual Environment
+.venv/
+env/
+
+# VS Code
+.vscode/
+
+# Python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# Dataset
+data/
+
+# Results / runtime artifacts (keep the folders, ignore contents)
+results/*
+!results/.gitkeep
+uploads/*
+!uploads/.gitkeep
+outputs/*
+!outputs/.gitkeep
+logs/*
+!logs/.gitkeep
+
+# Databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Model weights
+*.pth
+*.pt
+
+# Zip files
+*.zip
+
+# OS / test caches
+.pytest_cache/
+.DS_Store
+.venv312/
+
+# Virtual environments.venv312/.venv/
+env/
+
+# Environment variables / secrets.env
+
+
+.git_old_backup/
+
+.git_old_backup/

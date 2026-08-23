@@ -1,0 +1,66 @@
+# Deepfake Detection System - Python dependencies
+# Install with:  pip install -r requirements.txt
+
+# --- Core deep learning ---
+torch>=2.0
+torchvision>=0.15
+timm>=0.9.0
+
+# --- Data / image processing ---
+numpy>=1.24
+pandas>=2.0
+opencv-python>=4.8
+Pillow>=10.0
+albumentations>=1.4.0
+
+# --- Face detection ---
+facenet-pytorch>=2.5.3
+
+# --- Audio deepfake detection ---
+librosa>=0.10.0
+soundfile>=0.12.1
+# Optional: real-time microphone detection (src/realtime_audio.py)
+sounddevice>=0.4.6
+
+# --- Explainability (Grad-CAM) ---
+grad-cam>=1.5.0
+
+# --- PDF authenticity reports ---
+fpdf2>=2.7.0
+
+# --- ONNX export (optional runtime verification) ---
+# torch.onnx (bundled with torch) handles export; onnxruntime enables the
+# numerical verification step in src/export_onnx.py.
+# onnxruntime>=1.17
+
+# --- Metrics / plotting ---
+scikit-learn>=1.3
+matplotlib>=3.7
+
+# --- REST API (FastAPI) ---
+fastapi>=0.110
+uvicorn[standard]>=0.27
+python-multipart>=0.0.9
+pydantic>=2.0
+
+# --- Checkpoint auto-download from the Hugging Face Hub (optional) ---
+# Only needed when using DEEPFAKE_HF_REPO. Direct-URL downloads
+# (DEEPFAKE_CHECKPOINT_URL) work with the standard library alone.
+huggingface_hub>=0.20
+
+# --- Web apps / demo ---
+streamlit>=1.30
+gradio>=4.0
+
+# --- Real-time in-browser webcam (optional but recommended) ---
+# Enables the "Live Webcam" tab in app.py. The standalone desktop
+# detector (python -m src.realtime_webcam) works without this.
+streamlit-webrtc>=0.47
+av>=10.0
+
+# --- Testing ---
+pytest>=8.0
+httpx>=0.27          # FastAPI TestClient dependency
+
+# --- Optional experiment tracking (used by src/train.py if installed) ---
+# wandb>=0.16

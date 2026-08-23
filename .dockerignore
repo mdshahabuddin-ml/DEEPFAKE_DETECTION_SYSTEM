@@ -1,0 +1,22 @@
+# Keep the Docker build context small.
+.git
+.venv
+env
+__pycache__
+*.pyc
+.pytest_cache
+.ipynb_checkpoints
+
+# Datasets and large artifacts (mount / download at runtime instead)
+data/
+notebooks/
+uploads/*
+outputs/*
+logs/*
+results/*
+!**/.gitkeep
+
+# Local editor / OS
+.vscode
+.idea
+.DS_Store

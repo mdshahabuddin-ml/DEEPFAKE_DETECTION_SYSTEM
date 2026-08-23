@@ -1,0 +1,60 @@
+# AI-Powered Explainable Deepfake Detection System
+# Runs the FastAPI service and the Streamlit UI from one shared image.
+#
+#   docker compose up --build
+#
+#   API   -> http://localhost:8000/docs
+#   UI    -> http://localhost:8501
+#
+# Place your trained checkpoint in ./models/best_xception_celebdf.pth before
+# starting (the ./models mount makes it available inside both containers).
+
+services:
+  api:
+    build: .
+    image: deepfake-detection:latest
+    container_name: deepfake-api
+    command: uvicorn api.main:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./models:/app/models
+      - ./uploads:/app/uploads
+      - ./outputs:/app/outputs
+      - ./logs:/app/logs
+      - ./results:/app/results
+    restart: unless-stopped
+
+  ui:
+    build: .
+    image: deepfake-detection:latest
+    container_name: deepfake-ui
+    command: streamlit run app/streamlit_app.py --server.address 0.0.0.0 --server.port 8501
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./models:/app/models
+      - ./uploads:/app/uploads
+      - ./outputs:/app/outputs
+      - ./logs:/app/logs
+      - ./results:/app/results
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  gradio:
+    build: .
+    image: deepfake-detection:latest
+    container_name: deepfake-gradio
+    command: python app/gradio_app.py
+    environment:
+      - PORT=7860
+    ports:
+      - "7860:7860"
+    volumes:
+      - ./models:/app/models
+      - ./uploads:/app/uploads
+      - ./outputs:/app/outputs
+      - ./logs:/app/logs
+      - ./results:/app/results
+    restart: unless-stopped

@@ -1,0 +1,23 @@
+# Render.com blueprint — deploys the Gradio KYC app as a web service.
+# Docs: https://render.com/docs/blueprint-spec
+#
+# Deploy: push this repo to GitHub, then "New + > Blueprint" on Render and
+# point it at this file. Render injects $PORT, which app/gradio_app.py reads.
+#
+# NOTE: PyTorch is large; use at least the Starter instance (free tier may
+# run out of memory/build time). Add your checkpoint via a persistent disk
+# or bake it into the image, since models/*.pth is gitignored.
+
+services:
+  - type: web
+    name: deepfake-detection
+    runtime: python
+    plan: starter
+    buildCommand: pip install --upgrade pip && pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu && pip install -r requirements.txt
+    startCommand: python app/gradio_app.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+      - key: DEEPFAKE_CHECKPOINT
+        value: models/best_xception_celebdf.pth
+    autoDeploy: true
