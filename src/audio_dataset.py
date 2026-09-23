@@ -235,3 +235,63 @@ def get_audio_dataloaders(data_root=None, split_csv=None, batch_size=32,
         train, val, test = stratified_split(samples, val_split, test_split, seed)
     return make_dataloaders(train, val, test, batch_size=batch_size,
                             num_workers=num_workers)
+
+
+
+class CachedAudioDeepfakeDataset(Dataset):
+    """Loads pre-computed spectrogram .npy files for fast training."""
+
+    def __init__(self, samples):
+        self.samples = samples
+
+    def __len__(self):
+        return len(self.samples)
+
+    def __getitem__(self, idx):
+        cache_path, label = self.samples[idx]
+        try:
+            spec = np.load(cache_path)
+            if spec.dtype == np.float16:
+                spec = spec.astype(np.float32)
+        except Exception:
+            spec = np.zeros((1, 128, 256), dtype=np.float32)
+        return torch.from_numpy(spec), label
+
+
+def load_cached_split_csv(cache_index_path):
+    """Load cache_index.csv with columns: cache_path, label, split."""
+    df = pd.read_csv(cache_index_path)
+    required = {"cache_path", "label", "split"}
+    missing = required - set(df.columns)
+    if missing:
+        raise ValueError(f"Cache index missing columns: {sorted(missing)}")
+    out = {"train": [], "val": [], "test": []}
+    for _, row in df.iterrows():
+        split = str(row["split"]).strip().lower()
+        if split in out:
+            out[split].append((str(row["cache_path"]), int(row["label"])))
+    return out
+
+
+def make_cached_dataloaders(train_samples, val_samples, test_samples,
+                            batch_size=32, num_workers=0):
+    train_ds = CachedAudioDeepfakeDataset(train_samples)
+    val_ds = CachedAudioDeepfakeDataset(val_samples)
+    test_ds = CachedAudioDeepfakeDataset(test_samples)
+    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True,
+                              num_workers=num_workers, pin_memory=True)
+    val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False,
+                            num_workers=num_workers, pin_memory=True)
+    test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False,
+                             num_workers=num_workers, pin_memory=True)
+    print(f"Cached - Train: {len(train_ds)} | Val: {len(val_ds)} | Test: {len(test_ds)}")
+    return train_loader, val_loader, test_loader
+
+
+def get_cached_audio_dataloaders(cache_index, batch_size=32, num_workers=0):
+    """Load dataloaders from pre-cached spectrogram .npy files."""
+    splits = load_cached_split_csv(cache_index)
+    return make_cached_dataloaders(
+        splits["train"], splits["val"], splits["test"],
+        batch_size=batch_size, num_workers=num_workers,
+    )

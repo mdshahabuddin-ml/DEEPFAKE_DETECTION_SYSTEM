@@ -38,8 +38,24 @@ from src.config import (
     RATE_LIMIT_PER_MIN, UPLOADS_DIR,
 )
 from src.database import PredictionRecord, get_db
-from src.inference import ModelNotFoundError, get_detector
+from src.inference import get_detector
+from src.exceptions import (
+    ModelNotFoundError,
+    ModelLoadError,
+    InferenceError,
+    FileValidationError,
+    FileTooLargeError,
+    UnsupportedFileTypeError,
+    ImageError,
+    VideoError,
+)
 from src.logger import get_logger
+from src.validation import (
+    validate_file_extension,
+    validate_file_size,
+    validate_image_readable,
+    validate_video_readable,
+)
 
 logger = get_logger("api")
 
@@ -58,7 +74,16 @@ app.add_middleware(
 )
 
 # ---------------------------------------------------------------------------
-# Security guard: optional API-key auth + in-memory rate limiting.
+# Mount advanced detection endpoints (audio forensics, multi-modal, etc.)
+# ---------------------------------------------------------------------------
+try:
+    from api.advanced import advanced_router
+    app.include_router(advanced_router, prefix="/advanced")
+    logger.info("Mounted /advanced endpoints")
+except Exception as exc:
+    logger.warning("Could not mount advanced router: %s", exc)
+
+# ---------------------------------------------------------------------------: optional API-key auth + in-memory rate limiting.
 # Applies only to inference endpoints; system/docs routes stay open.
 # ---------------------------------------------------------------------------
 _PROTECTED_PREFIXES = ("/predict", "/analyze", "/report", "/localize")
@@ -169,20 +194,29 @@ def _require_detector():
     except ModelNotFoundError as exc:
         logger.error("Model not available: %s", exc)
         raise HTTPException(status_code=503, detail=str(exc))
+    except ModelLoadError as exc:
+        logger.error("Failed to load model: %s", exc)
+        raise HTTPException(status_code=503, detail=f"Model load failed: {exc}")
+    except Exception as exc:
+        logger.error("Unexpected error loading model: %s", exc)
+        raise HTTPException(status_code=503, detail="Internal server error")
 
 
 def _save_upload(upload: UploadFile, allowed_ext: set) -> Path:
     """Validate extension + size and persist the upload to uploads/."""
-    suffix = Path(upload.filename or "").suffix.lower()
-    if suffix not in allowed_ext:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Unsupported file type '{suffix}'. Allowed: {sorted(allowed_ext)}",
+    try:
+        # Validate file extension
+        suffix = validate_file_extension(
+            upload.filename or "",
+            allowed_ext
         )
+    except UnsupportedFileTypeError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
     dest = UPLOADS_DIR / f"{uuid.uuid4().hex}{suffix}"
     size = 0
     max_bytes = MAX_UPLOAD_MB * 1024 * 1024
+    
     try:
         with dest.open("wb") as out:
             while chunk := upload.file.read(1024 * 1024):
@@ -195,12 +229,20 @@ def _save_upload(upload: UploadFile, allowed_ext: set) -> Path:
                         detail=f"File exceeds {MAX_UPLOAD_MB} MB limit.",
                     )
                 out.write(chunk)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("Failed to save upload: %s", exc)
+        dest.unlink(missing_ok=True)
+        raise HTTPException(status_code=500, detail="Failed to save uploaded file")
     finally:
         upload.file.close()
 
     if size == 0:
         dest.unlink(missing_ok=True)
         raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+    
+    logger.debug("Upload saved: %s (%d bytes)", dest.name, size)
     return dest
 
 
@@ -282,8 +324,13 @@ def predict_image(file: UploadFile = File(...)) -> PredictionResponse:
     path = _save_upload(file, ALLOWED_IMAGE_EXT)
     try:
         result = detector.predict_image(path)
-    except ValueError as exc:
+    except ImageError as exc:
         raise HTTPException(status_code=400, detail=f"Invalid image: {exc}")
+    except InferenceError as exc:
+        raise HTTPException(status_code=500, detail=f"Inference failed: {exc}")
+    except Exception as exc:
+        logger.error("Image prediction failed: %s", exc)
+        raise HTTPException(status_code=500, detail="Prediction failed")
     finally:
         path.unlink(missing_ok=True)
     result["file_name"] = file.filename or path.name
@@ -298,8 +345,13 @@ def predict_video(file: UploadFile = File(...)) -> PredictionResponse:
     path = _save_upload(file, ALLOWED_VIDEO_EXT)
     try:
         result = detector.predict_video(path)
-    except ValueError as exc:
+    except VideoError as exc:
         raise HTTPException(status_code=400, detail=f"Invalid video: {exc}")
+    except InferenceError as exc:
+        raise HTTPException(status_code=500, detail=f"Inference failed: {exc}")
+    except Exception as exc:
+        logger.error("Video prediction failed: %s", exc)
+        raise HTTPException(status_code=500, detail="Prediction failed")
     finally:
         path.unlink(missing_ok=True)
     result["file_name"] = file.filename or path.name
@@ -339,10 +391,16 @@ def localize_image(file: UploadFile = File(...)) -> LocalizationResponse:
     detector = _require_detector()
     path = _save_upload(file, ALLOWED_IMAGE_EXT)
     try:
-        bgr = cv2.imread(str(path))
-        if bgr is None:
-            raise HTTPException(status_code=400, detail="Invalid image.")
+        try:
+            bgr = validate_image_readable(str(path))
+        except ImageError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
         faces = detector.localize_faces(bgr)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("Face localization failed: %s", exc)
+        raise HTTPException(status_code=500, detail="Localization failed")
     finally:
         path.unlink(missing_ok=True)
     return LocalizationResponse(
@@ -359,11 +417,17 @@ def analyze_image(file: UploadFile = File(...)) -> TrustReportResponse:
     detector = _require_detector()
     path = _save_upload(file, ALLOWED_IMAGE_EXT)
     try:
-        bgr = cv2.imread(str(path))
-        if bgr is None:
-            raise HTTPException(status_code=400, detail="Invalid image.")
+        try:
+            bgr = validate_image_readable(str(path))
+        except ImageError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
         report = trust_image(detector, bgr,
                              file_name=file.filename or path.name, file_path=str(path))
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("Trust analysis failed: %s", exc)
+        raise HTTPException(status_code=500, detail="Analysis failed")
     finally:
         path.unlink(missing_ok=True)
     return TrustReportResponse(**report.to_dict())
@@ -376,7 +440,16 @@ def analyze_video_trust(file: UploadFile = File(...)) -> TrustReportResponse:
     detector = _require_detector()
     path = _save_upload(file, ALLOWED_VIDEO_EXT)
     try:
+        try:
+            validate_video_readable(str(path))
+        except VideoError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
         report = trust_video(detector, str(path), file_name=file.filename or path.name)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("Video trust analysis failed: %s", exc)
+        raise HTTPException(status_code=500, detail="Analysis failed")
     finally:
         path.unlink(missing_ok=True)
     return TrustReportResponse(**report.to_dict())

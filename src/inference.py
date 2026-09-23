@@ -39,6 +39,18 @@ from src.config import (
 )
 
 from src.model import build_model
+from src.exceptions import (
+    ModelNotFoundError,
+    ModelLoadError,
+    InferenceError,
+    FaceDetectionError,
+    VideoError,
+    ImageError,
+)
+from src.logger import get_logger
+from src.calibration import PredictionCalibrator, CalibrationResult, UncertaintyResult
+
+logger = get_logger(__name__)
 
 try:
     import albumentations as A
@@ -48,14 +60,6 @@ except ImportError as exc:
         "Albumentations is required for inference. "
         "Install it with: pip install albumentations"
     ) from exc
-
-
-# ============================================================================
-# EXCEPTIONS
-# ============================================================================
-
-class ModelNotFoundError(FileNotFoundError):
-    """Raised when the trained model checkpoint cannot be found."""
 
 
 # ============================================================================
@@ -135,10 +139,21 @@ class FaceDetector:
             except ImportError:
 
                 if self.backend == "mtcnn":
-                    raise ImportError(
-                        "facenet-pytorch is required for MTCNN. "
+                    import logging
+                    logging.getLogger(__name__).warning(
+                        "facenet-pytorch is not installed. "
+                        "Falling back to Haar cascade for face detection. "
                         "Install with: pip install facenet-pytorch"
                     )
+                    # Fall back to Haar instead of crashing
+                    if self.haar is None:
+                        haar_path = cv2.data.haarcascades + (
+                            "haarcascade_frontalface_default.xml"
+                        )
+                        if Path(haar_path).exists():
+                            self.haar = cv2.CascadeClassifier(haar_path)
+                            if self.haar.empty():
+                                self.haar = None
 
                 self.mtcnn = None
 
@@ -295,6 +310,33 @@ class FaceDetector:
             frame_bgr
         )
 
+    def detect(
+        self,
+        frame_bgr: np.ndarray,
+    ) -> List[Tuple[int, int, int, int]]:
+        """Alias for detect_faces (backward compat)."""
+        return self.detect_faces(frame_bgr)
+
+    def crop_largest(
+        self,
+        frame_bgr: np.ndarray,
+    ) -> Optional[np.ndarray]:
+        """Return the largest face crop (BGR) or None."""
+        from src.config import FACE_MARGIN
+        box = self.largest_face_box(frame_bgr)
+        if box is None:
+            return None
+        x0, y0, x1, y1 = box
+        h, w = frame_bgr.shape[:2]
+        mx = int((x1 - x0) * FACE_MARGIN)
+        my = int((y1 - y0) * FACE_MARGIN)
+        x0 = max(0, x0 - mx)
+        y0 = max(0, y0 - my)
+        x1 = min(w, x1 + mx)
+        y1 = min(h, y1 + my)
+        crop = frame_bgr[y0:y1, x0:x1]
+        return crop if crop.size > 0 else None
+
     def largest_face_box(
         self,
         frame_bgr: np.ndarray,
@@ -356,83 +398,83 @@ class DeepfakeDetector:
         )
 
         if not self.checkpoint_path.exists():
-
             raise ModelNotFoundError(
                 f"Model checkpoint not found:\n"
                 f"{self.checkpoint_path}"
             )
 
-        print("=" * 60)
-        print("LOADING DEEPFAKE DETECTOR")
-        print("=" * 60)
-
-        print(
-            f"Model      : {self.model_name}"
-        )
-
-        print(
-            f"Checkpoint : {self.checkpoint_path}"
-        )
-
-        print(
-            f"Device     : {self.device}"
-        )
-
-        print(
-            f"Threshold  : {self.threshold}"
-        )
+        logger.info("=" * 60)
+        logger.info("LOADING DEEPFAKE DETECTOR")
+        logger.info("=" * 60)
+        logger.info("Model      : %s", self.model_name)
+        logger.info("Checkpoint : %s", self.checkpoint_path)
+        logger.info("Device     : %s", self.device)
+        logger.info("Threshold  : %s", self.threshold)
 
         # ------------------------------------------------------------
         # Build model
         # ------------------------------------------------------------
 
-        self.model = build_model(
-            self.model_name,
-            pretrained=False,
-            dropout=0.5,
-            device=self.device,
-        )
+        try:
+            self.model = build_model(
+                self.model_name,
+                pretrained=False,
+                dropout=0.5,
+                device=self.device,
+            )
+        except Exception as e:
+            raise ModelLoadError(f"Failed to build model: {e}") from e
 
         # ------------------------------------------------------------
         # Load checkpoint
         # ------------------------------------------------------------
 
-        checkpoint = torch.load(
-            self.checkpoint_path,
-            map_location=self.device,
-        )
-
-        if (
-            isinstance(checkpoint, dict)
-            and "model_state_dict" in checkpoint
-        ):
-
-            state_dict = (
-                checkpoint["model_state_dict"]
+        try:
+            checkpoint = torch.load(
+                self.checkpoint_path,
+                map_location=self.device,
             )
 
-        else:
+            if (
+                isinstance(checkpoint, dict)
+                and "model_state_dict" in checkpoint
+            ):
+                state_dict = checkpoint["model_state_dict"]
+            else:
+                state_dict = checkpoint
 
-            state_dict = checkpoint
+            self.model.load_state_dict(
+                state_dict,
+                strict=True,
+            )
 
-        self.model.load_state_dict(
-            state_dict,
-            strict=True,
-        )
+            self.model.to(self.device)
+            self.model.eval()
 
-        self.model.to(
-            self.device
-        )
+            self.checkpoint_info = checkpoint
+            logger.info("Checkpoint loaded successfully.")
+            logger.info("=" * 60)
 
-        self.model.eval()
+        except Exception as e:
+            raise ModelLoadError(
+                f"Failed to load checkpoint: {e}"
+            ) from e
 
-        self.checkpoint_info = checkpoint
+        # ------------------------------------------------------------
+        # Reusable face detector (avoids re-init per call)
+        # ------------------------------------------------------------
 
-        print(
-            "Checkpoint loaded successfully."
-        )
-
-        print("=" * 60)
+        try:
+            self.face_detector = FaceDetector(
+                backend=FACE_DETECTOR,
+                device=self.device,
+            )
+        except Exception as e:
+            logger.warning("Face detector init failed, using fallback: %s", e)
+            self.face_detector = FaceDetector(
+                backend="auto",
+                device=self.device,
+            )
 
         # ------------------------------------------------------------
         # Preprocessing
@@ -461,6 +503,16 @@ class DeepfakeDetector:
                 ToTensorV2(),
             ]
         )
+
+        # ------------------------------------------------------------
+        # Prediction calibrator
+        # ------------------------------------------------------------
+
+        self.calibrator = PredictionCalibrator(
+            method="temperature",
+            n_mc_passes=30,
+        )
+        logger.info("Prediction calibrator initialized")
 
     # ========================================================================
     # IMAGE PREPROCESSING
@@ -600,79 +652,46 @@ class DeepfakeDetector:
     def predict_image(
         self,
         image_path: str,
-        face_detector: Optional[
-            FaceDetector
-        ] = None,
+        face_detector: Optional[FaceDetector] = None,
     ) -> dict:
+        """
+        Run inference on an image file.
 
-        image_path = str(
-            image_path
-        )
+        Args:
+            image_path: Path to the image file
+            face_detector: Optional face detector instance
 
-        image = cv2.imread(
-            image_path
-        )
+        Returns:
+            Dictionary with prediction results
+        """
+        image_path = str(image_path)
+
+        try:
+            image = cv2.imread(image_path)
+        except Exception as e:
+            raise ImageError(f"Could not read image: {image_path}") from e
 
         if image is None:
+            raise ImageError(f"Could not read image:\n{image_path}")
 
-            raise FileNotFoundError(
-                f"Could not read image:\n"
-                f"{image_path}"
-            )
+        detector = face_detector or self.face_detector
 
-        detector = (
-            face_detector
-            or FaceDetector(
-                backend=FACE_DETECTOR,
-                device=self.device,
-            )
-        )
-
-        box = detector.largest_face_box(
-            image
-        )
+        box = detector.largest_face_box(image)
 
         if box is not None:
-
-            face = (
-                self._crop_with_margin(
-                    image,
-                    box,
-                )
-            )
-
-            probability = (
-                self._predict_face(
-                    face
-                )
-            )
-
+            face = self._crop_with_margin(image, box)
+            probability = self._predict_face(face)
             face_detected = True
-
+            logger.debug("Face detected at box: %s", box)
         else:
-
             # No valid face was detected.
-            #
             # Keep the existing fallback behavior.
-            probability = (
-                self._predict_face(
-                    image
-                )
-            )
-
+            probability = self._predict_face(image)
             face_detected = False
+            logger.warning("No face detected in image: %s", image_path)
 
-        label = label_from_prob(
-            probability,
-            self.threshold,
-        )
-
-        confidence = (
-            confidence_from_prob(
-                probability,
-                self.threshold,
-            )
-        )
+        label = label_from_prob(probability, self.threshold)
+        confidence = confidence_from_prob(probability, self.threshold)
 
         return {
             "path": image_path,
@@ -685,6 +704,190 @@ class DeepfakeDetector:
         }
 
     # ========================================================================
+    # PREDICT FROM ARRAY (no disk read)
+    # ========================================================================
+
+    def predict_image_array(
+        self,
+        bgr_image: np.ndarray,
+        face_detector: Optional[FaceDetector] = None,
+    ) -> dict:
+        """
+        Run inference on a BGR numpy array directly (no file I/O).
+
+        Args:
+            bgr_image: Input image as BGR numpy array
+            face_detector: Optional face detector instance
+
+        Returns:
+            Dictionary with prediction results
+        """
+        import time
+
+        if bgr_image is None or bgr_image.size == 0:
+            logger.warning("Empty or None image provided for prediction")
+            return {
+                "path": "",
+                "label": "NO_FACE",
+                "prediction": "NO_FACE",
+                "probability_fake": 0.0,
+                "confidence": 0.0,
+                "face_detected": False,
+                "face_box": None,
+                "inference_time": 0.0,
+            }
+
+        t0 = time.perf_counter()
+
+        detector = face_detector or self.face_detector
+        box = detector.largest_face_box(bgr_image)
+
+        if box is not None:
+            face = self._crop_with_margin(bgr_image, box)
+            probability = self._predict_face(face)
+            face_detected = True
+        else:
+            probability = self._predict_face(bgr_image)
+            face_detected = False
+            logger.debug("No face detected in array prediction")
+
+        label = label_from_prob(probability, self.threshold)
+        confidence = confidence_from_prob(probability, self.threshold)
+
+        inference_time = round(time.perf_counter() - t0, 4)
+        logger.debug("Array prediction complete: %s (%.4f seconds)", label, inference_time)
+
+        return {
+            "path": "",
+            "label": label,
+            "prediction": label,
+            "probability_fake": probability,
+            "fake_probability": probability,
+            "confidence": confidence,
+            "face_detected": face_detected,
+            "face_box": [int(box[0]), int(box[1]), int(box[2]), int(box[3])] if box else None,
+            "inference_time": inference_time,
+        }
+
+    # ========================================================================
+    # BATCH IMAGE PREDICTION
+    # ========================================================================
+
+    def predict_images(
+        self,
+        image_paths: List[str],
+        max_images: int = 100,
+    ) -> List[dict]:
+        """Run prediction on a list of image paths."""
+        results = []
+        for path in image_paths[:max_images]:
+            try:
+                result = self.predict_image(path)
+                result["file_name"] = Path(path).name
+                results.append(result)
+            except Exception as e:
+                results.append({
+                    "path": str(path),
+                    "file_name": Path(path).name,
+                    "label": "ERROR",
+                    "prediction": "ERROR",
+                    "probability_fake": 0.0,
+                    "confidence": 0.0,
+                    "face_detected": False,
+                    "error": str(e),
+                })
+        return results
+
+    # ========================================================================
+    # BATCH VIDEO PREDICTION
+    # ========================================================================
+
+    def predict_videos(
+        self,
+        video_paths: List[str],
+        max_frames: int = VIDEO_MAX_FRAMES,
+        max_videos: int = 50,
+    ) -> List[dict]:
+        """Run prediction on a list of video paths."""
+        results = []
+        for path in video_paths[:max_videos]:
+            try:
+                result = self.predict_video(path, max_frames=max_frames)
+                result["file_name"] = Path(path).name
+                results.append(result)
+            except Exception as e:
+                results.append({
+                    "path": str(path),
+                    "file_name": Path(path).name,
+                    "label": "ERROR",
+                    "prediction": "ERROR",
+                    "probability_fake": 0.0,
+                    "confidence": 0.0,
+                    "error": str(e),
+                })
+        return results
+
+    # ========================================================================
+    # VIDEO ANNOTATION
+    # ========================================================================
+
+    def annotate_video(
+        self,
+        video_path: str,
+        output_path: Optional[str] = None,
+        max_frames: int = VIDEO_MAX_FRAMES,
+    ) -> Optional[str]:
+        """Annotate video frames with face boxes and predictions. Returns output path."""
+        import tempfile
+
+        video_path = str(video_path)
+        cap = cv2.VideoCapture(video_path)
+        if not cap.isOpened():
+            return None
+
+        if output_path is None:
+            suffix = Path(video_path).stem
+            output_path = str(Path(tempfile.gettempdir()) / f"annotated_{suffix}.mp4")
+
+        fps = cap.get(cv2.CAP_PROP_FPS) or 24.0
+        w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+        writer = cv2.VideoWriter(output_path, fourcc, fps, (w, h))
+
+        detector = self.face_detector
+        frame_count = 0
+        total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        interval = max(1, total // max_frames) if total > 0 else 1
+
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
+            frame_count += 1
+            if frame_count % interval != 0:
+                writer.write(frame)
+                continue
+
+            boxes = detector.detect_faces(frame)
+            annotated = frame.copy()
+            for box in boxes:
+                face = self._crop_with_margin(frame, box)
+                prob = self._predict_face(face)
+                label = label_from_prob(prob, self.threshold)
+                color = (0, 0, 255) if label == "FAKE" else (0, 200, 0)
+                x0, y0, x1, y1 = box
+                cv2.rectangle(annotated, (x0, y0), (x1, y1), color, 2)
+                text = f"{label} {prob*100:.0f}%"
+                cv2.putText(annotated, text, (x0, y0 - 5),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1, cv2.LINE_AA)
+            writer.write(annotated)
+
+        cap.release()
+        writer.release()
+        return output_path
+
+    # ========================================================================
     # VIDEO PREDICTION
     # ========================================================================
 
@@ -692,123 +895,81 @@ class DeepfakeDetector:
         self,
         video_path: str,
         max_frames: int = VIDEO_MAX_FRAMES,
-        face_detector: Optional[
-            FaceDetector
-        ] = None,
+        face_detector: Optional[FaceDetector] = None,
     ) -> dict:
+        """
+        Run inference on a video file.
 
-        video_path = str(
-            video_path
-        )
+        Args:
+            video_path: Path to the video file
+            max_frames: Maximum number of frames to sample
+            face_detector: Optional face detector instance
 
-        if not Path(
-            video_path
-        ).exists():
+        Returns:
+            Dictionary with prediction results including frame-level stats
+        """
+        video_path = str(video_path)
 
-            raise FileNotFoundError(
-                f"Video not found:\n"
-                f"{video_path}"
-            )
+        if not Path(video_path).exists():
+            raise VideoError(f"Video not found:\n{video_path}")
 
-        cap = cv2.VideoCapture(
-            video_path
-        )
+        cap = cv2.VideoCapture(video_path)
 
         if not cap.isOpened():
+            raise VideoError(f"Could not open video:\n{video_path}")
 
-            raise RuntimeError(
-                f"Could not open video:\n"
-                f"{video_path}"
-            )
-
-        detector = (
-            face_detector
-            or FaceDetector(
-                backend=FACE_DETECTOR,
-                device=self.device,
-            )
-        )
+        detector = face_detector or self.face_detector
 
         probabilities = []
-
         frame_count = 0
         sampled_frames = 0
         face_frames = 0
 
-        total_frames = int(
-            cap.get(
-                cv2.CAP_PROP_FRAME_COUNT
-            )
-        )
+        try:
+            total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
-        if total_frames <= 0:
-            total_frames = max_frames
+            if total_frames <= 0:
+                total_frames = max_frames
 
-        sample_interval = max(
-            1,
-            total_frames // max_frames,
-        )
+            sample_interval = max(1, total_frames // max_frames)
 
-        while (
-            sampled_frames < max_frames
-        ):
+            logger.info("Processing video: %s (total frames: %d, sampling every %d frames)",
+                       video_path, total_frames, sample_interval)
 
-            ret, frame = cap.read()
+            while sampled_frames < max_frames:
+                ret, frame = cap.read()
 
-            if not ret:
-                break
+                if not ret:
+                    break
 
-            frame_count += 1
+                frame_count += 1
 
-            if (
-                frame_count % sample_interval
-                != 0
-            ):
-                continue
+                if frame_count % sample_interval != 0:
+                    continue
 
-            box = detector.largest_face_box(
-                frame
-            )
+                box = detector.largest_face_box(frame)
 
-            if box is not None:
+                if box is not None:
+                    face = self._crop_with_margin(frame, box)
+                    face_frames += 1
+                else:
+                    face = frame
 
-                face = (
-                    self._crop_with_margin(
-                        frame,
-                        box,
-                    )
-                )
+                try:
+                    probability = self._predict_face(face)
+                    probabilities.append(probability)
+                except Exception as e:
+                    logger.warning("Failed to predict frame %d: %s", frame_count, e)
+                    continue
 
-                face_frames += 1
+                sampled_frames += 1
 
-            else:
-
-                face = frame
-
-            try:
-
-                probability = (
-                    self._predict_face(
-                        face
-                    )
-                )
-
-                probabilities.append(
-                    probability
-                )
-
-            except Exception:
-                continue
-
-            sampled_frames += 1
-
-        cap.release()
+        finally:
+            cap.release()
 
         if not probabilities:
-
-            raise RuntimeError(
-                "No valid frames could be "
-                "processed from video:\n"
+            raise InferenceError(
+                "No valid frames could be processed from video:\n"
                 f"{video_path}"
             )
 
@@ -816,65 +977,182 @@ class DeepfakeDetector:
         # Aggregation
         # ------------------------------------------------------------
 
-        probabilities_array = (
-            np.asarray(
-                probabilities,
-                dtype=np.float32,
-            )
-        )
+        probabilities_array = np.asarray(probabilities, dtype=np.float32)
 
-        mean_probability = float(
-            np.mean(
-                probabilities_array
-            )
-        )
+        mean_probability = float(np.mean(probabilities_array))
+        median_probability = float(np.median(probabilities_array))
+        max_probability = float(np.max(probabilities_array))
+        fake_frame_ratio = float(np.mean(probabilities_array >= self.threshold))
 
-        median_probability = float(
-            np.median(
-                probabilities_array
-            )
-        )
+        label = label_from_prob(mean_probability, self.threshold)
+        confidence = confidence_from_prob(mean_probability, self.threshold)
 
-        max_probability = float(
-            np.max(
-                probabilities_array
-            )
-        )
-
-        fake_frame_ratio = float(
-            np.mean(
-                probabilities_array
-                >= self.threshold
-            )
-        )
-
-        label = label_from_prob(
-            mean_probability,
-            self.threshold,
-        )
-
-        confidence = (
-            confidence_from_prob(
-                mean_probability,
-                self.threshold,
-            )
-        )
+        logger.info("Video prediction complete: %s (confidence: %.2f%%, fake frames: %d/%d)",
+                    label, confidence * 100, int(np.sum(probabilities_array >= self.threshold)),
+                    len(probabilities))
 
         return {
             "path": video_path,
             "label": label,
             "prediction": label,
             "probability_fake": mean_probability,
+            "fake_probability": mean_probability,
             "mean_probability_fake": mean_probability,
             "median_probability_fake": median_probability,
             "max_probability_fake": max_probability,
             "fake_frame_ratio": fake_frame_ratio,
+            "fake_frames": int(np.sum(probabilities_array >= self.threshold)),
+            "real_frames": int(np.sum(probabilities_array < self.threshold)),
+            "no_face_frames": sampled_frames - face_frames,
             "confidence": confidence,
             "frames_read": frame_count,
             "frames_sampled": sampled_frames,
             "frames_with_face": face_frames,
             "frame_probabilities": probabilities,
         }
+
+
+    # ========================================================================
+    # UNCERTAINTY-AWARE PREDICTION
+    # ========================================================================
+
+    def predict_with_uncertainty(
+        self,
+        image_bgr: np.ndarray,
+        n_forward_passes: int = 30,
+    ) -> dict:
+        """
+        Run prediction with MC Dropout uncertainty estimation.
+        
+        Args:
+            image_bgr: Input image as BGR numpy array
+            n_forward_passes: Number of MC Dropout forward passes
+            
+        Returns:
+            Dictionary with prediction results and uncertainty metrics
+        """
+        import time
+        
+        if image_bgr is None or image_bgr.size == 0:
+            return {
+                "prediction": "NO_FACE",
+                "fake_probability": 0.0,
+                "confidence": 0.0,
+                "uncertainty": 0.0,
+                "confidence_interval": (0.0, 0.0),
+                "face_detected": False,
+                "inference_time": 0.0,
+            }
+        
+        t0 = time.perf_counter()
+        
+        # Get face crop
+        box = self.face_detector.largest_face_box(image_bgr)
+        if box is not None:
+            face = self._crop_with_margin(image_bgr, box)
+            face_detected = True
+        else:
+            face = image_bgr
+            face_detected = False
+        
+        # Preprocess
+        tensor = self._preprocess_face(face)
+        
+        # Get uncertainty estimate
+        uncertainty_result = self.calibrator.mc_dropout.estimate_uncertainty(
+            self.model, tensor, self.device
+        )
+        
+        # Get calibrated prediction
+        calibration_result = self.calibrator.calibrate_single(
+            self.model, tensor, self.device
+        )
+        
+        label = label_from_prob(
+            calibration_result.calibrated_prob,
+            self.threshold,
+        )
+        confidence = confidence_from_prob(
+            calibration_result.calibrated_prob,
+            self.threshold,
+        )
+        
+        inference_time = round(time.perf_counter() - t0, 4)
+        
+        logger.info(
+            "Uncertainty prediction: %s (prob=%.4f, unc=%.4f, time=%.4f)",
+            label, calibration_result.calibrated_prob,
+            uncertainty_result.uncertainty, inference_time
+        )
+        
+        return {
+            "prediction": label,
+            "label": label,
+            "fake_probability": calibration_result.calibrated_prob,
+            "probability_fake": calibration_result.calibrated_prob,
+            "original_probability": calibration_result.original_prob,
+            "confidence": confidence,
+            "uncertainty": uncertainty_result.uncertainty,
+            "std_prediction": uncertainty_result.std_prediction,
+            "confidence_interval": uncertainty_result.confidence_interval,
+            "predictive_entropy": uncertainty_result.predictive_entropy,
+            "mutual_information": uncertainty_result.mutual_information,
+            "face_detected": face_detected,
+            "face_box": [int(box[0]), int(box[1]), int(box[2]), int(box[3])] if box else None,
+            "n_forward_passes": n_forward_passes,
+            "inference_time": inference_time,
+        }
+
+    # ========================================================================
+    # FACE LOCALIZATION (MULTI-FACE)
+    # ========================================================================
+
+    def localize_faces(
+        self,
+        image_bgr: np.ndarray,
+        face_detector: Optional[FaceDetector] = None,
+    ) -> List[dict]:
+        """Detect and score every face in an image."""
+        detector = face_detector or FaceDetector(
+            backend=FACE_DETECTOR, device=self.device,
+        )
+        boxes = detector.detect_faces(image_bgr)
+        results = []
+        for box in boxes:
+            face = self._crop_with_margin(image_bgr, box)
+            prob = self._predict_face(face)
+            label = label_from_prob(prob, self.threshold)
+            confidence = confidence_from_prob(prob, self.threshold)
+            results.append({
+                "box": [int(box[0]), int(box[1]), int(box[2]), int(box[3])],
+                "prediction": label,
+                "confidence": confidence,
+                "fake_probability": prob,
+            })
+        return results
+
+
+# ============================================================================
+# ANNOTATION HELPER
+# ============================================================================
+
+def annotate_faces(
+    image_bgr: np.ndarray,
+    results: List[dict],
+    threshold: float = DEFAULT_THRESHOLD,
+) -> np.ndarray:
+    """Draw per-face bounding boxes and labels on a copy of the image."""
+    annotated = image_bgr.copy()
+    for r in results:
+        x0, y0, x1, y1 = r["box"]
+        color = (0, 0, 255) if r["prediction"] == "FAKE" else (0, 200, 0)
+        cv2.rectangle(annotated, (x0, y0), (x1, y1), color, 2)
+        label = f"{r['prediction']} {r['confidence'] * 100:.0f}%"
+        (tw, th), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
+        cv2.rectangle(annotated, (x0, y0 - th - 8), (x0 + tw + 4, y0), color, -1)
+        cv2.putText(annotated, label, (x0 + 2, y0 - 4),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
+    return cv2.cvtColor(annotated, cv2.COLOR_BGR2RGB)
 
 
 # ============================================================================

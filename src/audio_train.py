@@ -8,6 +8,9 @@ Usage:
 
     # Or from a precomputed split CSV (columns: path,label,split):
     python -m src.audio_train --split_csv data/audio_split.csv --model cnn
+
+    # Or from cached spectrograms (fast):
+    python -m src.audio_train --split_csv data/audio_cache/cache_index.csv --model cnn --cache_dir data/audio_cache
 """
 
 import sys
@@ -22,7 +25,7 @@ from torch.optim.lr_scheduler import CosineAnnealingLR
 from sklearn.metrics import roc_auc_score
 
 sys.path.append(str(Path(__file__).parent.parent))
-from src.audio_dataset import get_audio_dataloaders
+from src.audio_dataset import get_audio_dataloaders, get_cached_audio_dataloaders
 from src.audio_model import build_audio_model
 
 
@@ -33,6 +36,8 @@ def parse_args():
                    help="Root with real/ and fake/ subfolders")
     p.add_argument("--split_csv", default=None,
                    help="Precomputed split CSV (path,label,split); overrides --data_root")
+    p.add_argument("--cache_dir", default=None,
+                   help="Use cached .npy spectrograms from this directory")
     p.add_argument("--epochs", type=int, default=15)
     p.add_argument("--batch_size", type=int, default=32)
     p.add_argument("--lr", type=float, default=1e-4)
@@ -89,13 +94,22 @@ def main():
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Device: {device}")
 
-    train_loader, val_loader, test_loader = get_audio_dataloaders(
-        data_root=args.data_root,
-        split_csv=args.split_csv,
-        batch_size=args.batch_size,
-        num_workers=args.num_workers,
-        seed=args.seed,
-    )
+    if args.cache_dir:
+        cache_index = args.split_csv or str(Path(args.cache_dir) / "cache_index.csv")
+        print(f"Using cached spectrograms from: {cache_index}")
+        train_loader, val_loader, test_loader = get_cached_audio_dataloaders(
+            cache_index=cache_index,
+            batch_size=args.batch_size,
+            num_workers=args.num_workers,
+        )
+    else:
+        train_loader, val_loader, test_loader = get_audio_dataloaders(
+            data_root=args.data_root,
+            split_csv=args.split_csv,
+            batch_size=args.batch_size,
+            num_workers=args.num_workers,
+            seed=args.seed,
+        )
 
     model = build_audio_model(args.model, pretrained=not args.no_pretrained,
                               dropout=args.dropout, device=device)

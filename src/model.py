@@ -9,6 +9,10 @@ import torch.nn as nn
 import timm
 from typing import Optional
 
+from src.logger import get_logger
+
+logger = get_logger(__name__)
+
 
 class XceptionDetector(nn.Module):
     def __init__(self, pretrained=True, dropout=0.5):
@@ -22,12 +26,27 @@ class XceptionDetector(nn.Module):
             nn.Dropout(dropout),
             nn.Linear(feat_dim, 1),
         )
+        self._dropout_rate = dropout
 
     def forward(self, x):
         return self.classifier(self.backbone(x))
 
     def get_features(self, x):
         return self.backbone(x)
+    
+    def enable_dropout(self):
+        """Enable dropout layers for MC Dropout inference."""
+        for module in self.modules():
+            if isinstance(module, nn.Dropout):
+                module.train()
+        logger.debug("Dropout enabled for MC Dropout inference")
+    
+    def disable_dropout(self):
+        """Disable dropout layers (set to eval mode)."""
+        for module in self.modules():
+            if isinstance(module, nn.Dropout):
+                module.eval()
+        logger.debug("Dropout disabled")
 
 
 class EfficientNetDetector(nn.Module):
@@ -42,9 +61,24 @@ class EfficientNetDetector(nn.Module):
             nn.Dropout(dropout),
             nn.Linear(feat_dim, 1),
         )
+        self._dropout_rate = dropout
 
     def forward(self, x):
         return self.classifier(self.backbone(x))
+    
+    def enable_dropout(self):
+        """Enable dropout layers for MC Dropout inference."""
+        for module in self.modules():
+            if isinstance(module, nn.Dropout):
+                module.train()
+        logger.debug("Dropout enabled for MC Dropout inference")
+    
+    def disable_dropout(self):
+        """Disable dropout layers (set to eval mode)."""
+        for module in self.modules():
+            if isinstance(module, nn.Dropout):
+                module.eval()
+        logger.debug("Dropout disabled")
 
 
 class ViTDetector(nn.Module):
@@ -59,9 +93,24 @@ class ViTDetector(nn.Module):
             nn.Dropout(dropout),
             nn.Linear(feat_dim, 1),
         )
+        self._dropout_rate = dropout
 
     def forward(self, x):
         return self.classifier(self.backbone(x))
+    
+    def enable_dropout(self):
+        """Enable dropout layers for MC Dropout inference."""
+        for module in self.modules():
+            if isinstance(module, nn.Dropout):
+                module.train()
+        logger.debug("Dropout enabled for MC Dropout inference")
+    
+    def disable_dropout(self):
+        """Disable dropout layers (set to eval mode)."""
+        for module in self.modules():
+            if isinstance(module, nn.Dropout):
+                module.eval()
+        logger.debug("Dropout disabled")
 
 
 class EnsembleDetector(nn.Module):
