@@ -1,3 +1,6 @@
+import os
+import secrets
+
 from flask import Flask
 from flask_login import LoginManager, login_required, current_user
 from auth_models import db, User
@@ -5,7 +8,15 @@ from auth_routes import auth_bp
 
 def create_app():
     app = Flask(__name__)
-    app.config["SECRET_KEY"] = "change-this-key"
+    secret_key = os.environ.get("FLASK_SECRET_KEY")
+    if not secret_key:
+        if os.environ.get("FLASK_ENV") == "production":
+            raise RuntimeError(
+                "FLASK_SECRET_KEY must be set in production; refusing to start "
+                "with an ephemeral key (sessions will not survive restarts)."
+            )
+        secret_key = secrets.token_hex(32)
+    app.config["SECRET_KEY"] = secret_key
     app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///auth.db"
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
@@ -39,4 +50,4 @@ def create_app():
     return app
 
 if __name__ == "__main__":
-    create_app().run(debug=True)
+    create_app().run(debug=os.environ.get("FLASK_DEBUG", "0") == "1")

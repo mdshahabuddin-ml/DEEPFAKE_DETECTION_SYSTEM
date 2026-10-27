@@ -1,5 +1,7 @@
 """Tests for the authentication backend."""
 
+import os
+
 from src.auth import AuthDB, hash_password, verify_password
 
 
@@ -16,11 +18,27 @@ def test_salt_is_random():
     assert s1 != s2 and h1 != h2                # different salts -> different hashes
 
 
-def test_admin_bootstrapped(tmp_path):
+def test_admin_bootstrapped_with_random_password(tmp_path, monkeypatch):
+    monkeypatch.delenv("DEEPFAKE_ADMIN_PASSWORD", raising=False)
     db = AuthDB(db_path=tmp_path / "users.db")
     assert db.user_exists("admin")
-    assert db.verify_credentials("admin", "admin123") is True
     assert db.get_role("admin") == "admin"
+    # The weak default must never be usable: bootstrap generates a random one.
+    assert db.verify_credentials("admin", "admin123") is False
+
+
+def test_admin_bootstrapped_with_strong_env_password(tmp_path, monkeypatch):
+    monkeypatch.setenv("DEEPFAKE_ADMIN_PASSWORD", "correct-horse-battery")
+    db = AuthDB(db_path=tmp_path / "users.db")
+    assert db.verify_credentials("admin", "correct-horse-battery") is True
+
+
+def test_admin_bootstrap_refuses_weak_password_in_production(tmp_path, monkeypatch):
+    monkeypatch.setenv("DEEPFAKE_ADMIN_PASSWORD", "admin123")
+    monkeypatch.setenv("DEEPFAKE_ENV", "production")
+    import pytest
+    with pytest.raises(RuntimeError, match="weak"):
+        AuthDB(db_path=tmp_path / "users.db")
 
 
 def test_add_and_authenticate(tmp_path):

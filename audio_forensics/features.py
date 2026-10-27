@@ -244,8 +244,8 @@ class AudioFeatureExtractor:
                 n_mels=self.config.n_mels,
                 n_fft=self.config.n_fft,
                 hop_length=self.config.hop_length,
-                f_min=self.config.f_min,
-                f_max=self.config.f_max,
+                fmin=self.config.f_min,
+                fmax=self.config.f_max,
             )
             log_mel = librosa.power_to_db(mel_spec, ref=np.max)
             return log_mel
@@ -310,8 +310,11 @@ class AudioFeatureExtractor:
         mel_points = np.linspace(mel_min, mel_max, n_mels + 2)
         hz_points = mel_to_hz(mel_points)
 
-        # Convert to FFT bin indices
-        bin_points = np.round(hz_points / (sample_rate / n_freqs)).astype(int)
+        # Convert to FFT bin indices. n_freqs == n_fft // 2 + 1, so the bin
+        # width in Hz is sample_rate / n_fft == sample_rate / (2 * (n_freqs - 1)).
+        n_fft = 2 * (n_freqs - 1)
+        bin_points = np.round(hz_points / (sample_rate / n_fft)).astype(int)
+        np.clip(bin_points, 0, n_freqs - 1, out=bin_points)
 
         # Create filterbank
         filterbank = np.zeros((n_mels, n_freqs))
@@ -397,7 +400,9 @@ class AudioFeatureExtractor:
 
     def _delta_fallback(self, feature: np.ndarray) -> np.ndarray:
         """Fallback delta calculation."""
-        # Simple finite difference
+        # Simple finite difference (guard narrow feature matrices)
+        if feature.shape[1] < 2:
+            return np.zeros_like(feature)
         delta = np.zeros_like(feature)
         delta[:, 1:-1] = feature[:, 2:] - feature[:, :-2]
         delta[:, 0] = delta[:, 1]
@@ -543,7 +548,7 @@ class AudioFeatureExtractor:
         hop_length = self.config.hop_length
 
         # Number of frames
-        n_frames = 1 + (len(audio) - frame_length) // hop_length
+        n_frames = max(1, 1 + (len(audio) - frame_length) // hop_length)
         zcr = np.zeros(n_frames)
 
         for i in range(n_frames):
@@ -574,7 +579,7 @@ class AudioFeatureExtractor:
         frame_length = self.config.n_fft
         hop_length = self.config.hop_length
 
-        n_frames = 1 + (len(audio) - frame_length) // hop_length
+        n_frames = max(1, 1 + (len(audio) - frame_length) // hop_length)
         rms = np.zeros(n_frames)
 
         for i in range(n_frames):

@@ -84,15 +84,27 @@ def predict_fake_prob(face_bgr, model, device, transform):
     return prob
 
 
-def draw_overlay(frame, box, prob, threshold, smoothed_prob, fps, show_help):
-    """Draw the face box, label, probability bar, and status text in-place."""
+def draw_overlay(frame, box, prob, threshold, smoothed_prob, fps, show_help,
+                 uncertain_margin=0.10):
+    """Draw the face box, label, probability bar, and status text in-place.
+
+    Borderline predictions within ±uncertain_margin of the threshold render
+    as UNCERTAIN (amber) instead of forcing REAL/FAKE.
+    """
     h_img, w_img = frame.shape[:2]
 
     if box is not None and prob is not None:
         x0, y0, x1, y1 = box
-        is_fake = smoothed_prob >= threshold
-        color = (0, 0, 255) if is_fake else (0, 200, 0)      # BGR: red / green
-        label = "FAKE" if is_fake else "REAL"
+        distance = abs(float(smoothed_prob) - threshold)
+        if distance <= uncertain_margin:
+            color = (0, 165, 255)  # BGR: amber
+            label = "UNCERTAIN"
+        elif smoothed_prob >= threshold:
+            color = (0, 0, 255)    # BGR: red
+            label = "FAKE"
+        else:
+            color = (0, 200, 0)    # BGR: green
+            label = "REAL"
 
         cv2.rectangle(frame, (x0, y0), (x1, y1), color, 2)
 

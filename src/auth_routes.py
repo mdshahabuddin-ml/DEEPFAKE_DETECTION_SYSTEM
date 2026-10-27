@@ -8,13 +8,16 @@ auth_bp = Blueprint("auth", __name__)
 @auth_bp.route("/signup", methods=["GET", "POST"])
 def signup():
     if request.method == "POST":
-        username = request.form["username"].strip()
-        email = request.form["email"].strip().lower()
-        password = request.form["password"]
-        role = request.form.get("role", "user")
+        username = request.form.get("username", "").strip()
+        email = request.form.get("email", "").strip().lower()
+        password = request.form.get("password", "")
 
-        if role not in {"admin", "user"}:
-            role = "user"
+        if not username or not email or not password:
+            flash("Username, email and password are required")
+            return redirect(url_for("auth.signup"))
+
+        # Role is never accepted from the client; admins are promoted out-of-band.
+        role = "user"
 
         exists = User.query.filter((User.username == username) | (User.email == email)).first()
         if exists:

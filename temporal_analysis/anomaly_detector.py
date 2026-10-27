@@ -94,8 +94,8 @@ class AnomalyDetector:
 
         return AnomalyResult(
             is_anomalous=is_anomalous,
-            anomaly_score=float(anomaly_score),
-            confidence=float(1.0 - std_diff / (mean_diff + 1e-10)),
+            anomaly_score=float(np.clip(anomaly_score, 0.0, 1.0)),
+            confidence=float(np.clip(1.0 - std_diff / (mean_diff + 1e-10), 0.0, 1.0)),
             anomaly_frames=anomaly_frames.tolist(),
             method="statistical",
             metadata={

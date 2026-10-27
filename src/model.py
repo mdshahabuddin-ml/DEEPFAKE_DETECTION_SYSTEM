@@ -149,7 +149,8 @@ def build_model(model_name="xception", pretrained=True, dropout=0.5, device=None
 
 
 def load_checkpoint(model, checkpoint_path, device="cpu"):
-    checkpoint = torch.load(checkpoint_path, map_location=device)
+    from src.checkpoint import safe_torch_load
+    checkpoint = safe_torch_load(checkpoint_path, map_location=device)
     if "model_state_dict" in checkpoint:
         model.load_state_dict(checkpoint["model_state_dict"])
     else:

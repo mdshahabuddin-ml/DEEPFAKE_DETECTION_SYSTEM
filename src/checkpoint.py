@@ -16,6 +16,8 @@ not installed.
 
 from __future__ import annotations
 
+import hashlib
+import os
 import shutil
 import urllib.request
 from pathlib import Path
@@ -29,9 +31,59 @@ from src.logger import get_logger
 
 logger = get_logger(__name__)
 
+_EXPECTED_SHA256 = os.environ.get("DEEPFAKE_CHECKPOINT_SHA256", "").strip().lower()
+
 
 class CheckpointDownloadError(RuntimeError):
     """Raised when an auto-download source is configured but fails."""
+
+
+def verify_checkpoint_sha256(path: Path, expected: Optional[str] = None) -> bool:
+    """
+    Verify the SHA-256 of a checkpoint file.
+
+    `expected` defaults to the DEEPFAKE_CHECKPOINT_SHA256 env var. Returns True
+    when no expected hash is configured (verification is opt-in). Raises
+    CheckpointDownloadError on mismatch.
+    """
+    expected = (expected or _EXPECTED_SHA256).strip().lower()
+    if not expected:
+        return True
+    digest = hashlib.sha256()
+    with open(path, "rb") as fh:
+        for chunk in iter(lambda: fh.read(1024 * 1024), b""):
+            digest.update(chunk)
+    actual = digest.hexdigest()
+    if actual != expected:
+        path.unlink(missing_ok=True)
+        raise CheckpointDownloadError(
+            f"Checkpoint SHA-256 mismatch for {path}: "
+            f"expected {expected}, got {actual}. File deleted."
+        )
+    logger.info("Checkpoint SHA-256 verified: %s", actual)
+    return True
+
+
+def safe_torch_load(path, map_location="cpu"):
+    """
+    Load a checkpoint with weights_only=True (no arbitrary pickle execution).
+
+    Older checkpoints stored numpy scalars (e.g. val_auc as np.float64), so a
+    narrow allowlist of numpy scalar types is registered. Anything beyond
+    tensors, primitives, and numpy scalars will still be rejected.
+    """
+    import torch
+
+    try:
+        import numpy as np
+        torch.serialization.add_safe_globals(
+            [np.float64, np.float32, np.float16,
+             np.int64, np.int32, np.int16, np.int8,
+             np.uint8, np.bool_]
+        )
+    except Exception:  # numpy unavailable - plain weights_only=True still applies
+        pass
+    return torch.load(path, map_location=map_location, weights_only=True)
 
 
 def _download_from_url(url: str, dest: Path) -> Path:
@@ -64,6 +116,11 @@ def _download_from_url(url: str, dest: Path) -> Path:
         tmp.unlink(missing_ok=True)
         raise CheckpointDownloadError("Downloaded checkpoint is empty.")
 
+    try:
+        verify_checkpoint_sha256(tmp)
+    except CheckpointDownloadError:
+        raise
+
     tmp.replace(dest)
     logger.info("Checkpoint saved to %s", dest)
     return dest
@@ -89,6 +146,10 @@ def _download_from_hf(repo_id: str, filename: str, dest: Path,
 
     dest.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(cached, dest)
+    try:
+        verify_checkpoint_sha256(dest)
+    except CheckpointDownloadError:
+        raise
     logger.info("Checkpoint saved to %s", dest)
     return dest
 

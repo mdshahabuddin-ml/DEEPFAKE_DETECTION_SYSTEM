@@ -122,7 +122,9 @@ class FormatAnalyzer:
                 result[f"{prefix}_codec"] = stream.get("codec_name", "")
                 result[f"{prefix}_width"] = stream.get("width", 0)
                 result[f"{prefix}_height"] = stream.get("height", 0)
-                result[f"{prefix}_fps"] = eval(stream.get("r_frame_rate", "0/1"))
+                result[f"{prefix}_fps"] = self._parse_frame_rate(
+                    stream.get("r_frame_rate", "0/1")
+                )
             elif codec_type == "audio":
                 result[f"{prefix}_type"] = "audio"
                 result[f"{prefix}_codec"] = stream.get("codec_name", "")
@@ -130,6 +132,16 @@ class FormatAnalyzer:
                 result[f"{prefix}_channels"] = stream.get("channels", 0)
 
         return result
+
+    @staticmethod
+    def _parse_frame_rate(value: str) -> float:
+        """Parse an ffprobe frame-rate string like '30000/1001' safely."""
+        from fractions import Fraction
+
+        try:
+            return float(Fraction(value))
+        except (ValueError, ZeroDivisionError):
+            return 0.0
 
     def get_codec_info(self, file_path: str) -> Dict[str, str]:
         """Get codec information."""

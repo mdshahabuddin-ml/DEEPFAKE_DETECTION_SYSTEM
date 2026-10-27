@@ -155,10 +155,25 @@ class RateLimiter:
         self.max_requests = max_requests
         self.window_seconds = window_seconds
         self.requests: Dict[str, List[float]] = {}
+        self._last_prune = time.time()
+
+    def _prune_stale_clients(self, now: float) -> None:
+        """Drop client_ids whose entire window has elapsed (bounds dict growth)."""
+        if now - self._last_prune < self.window_seconds:
+            return
+        self._last_prune = now
+        window_start = now - self.window_seconds
+        stale = [
+            cid for cid, times in self.requests.items()
+            if not times or times[-1] <= window_start
+        ]
+        for cid in stale:
+            del self.requests[cid]
 
     def is_allowed(self, client_id: str) -> bool:
         """Check if a request is allowed."""
         now = time.time()
+        self._prune_stale_clients(now)
         window_start = now - self.window_seconds
 
         if client_id not in self.requests:
@@ -194,31 +209,53 @@ class RateLimiter:
 
 
 class DataEncryptor:
-    """Encrypt sensitive data at rest."""
+    """Encrypt sensitive data at rest with AES-256-GCM (authenticated encryption)."""
 
     def __init__(self, key: Optional[str] = None):
         """
         Initialize encryptor.
 
         Args:
-            key: Encryption key (if None, generated randomly)
+            key: Encryption key (if None, generated randomly). Strings are
+                 interpreted as hex-encoded 32-byte keys or arbitrary passphrases
+                 (scrypt-derived).
         """
+        from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
+
         if key is None:
-            key = secrets.token_hex(32)
-        self.key = key.encode() if isinstance(key, str) else key
+            key_bytes = secrets.token_bytes(32)
+        elif isinstance(key, str):
+            try:
+                key_bytes = bytes.fromhex(key)
+            except ValueError:
+                key_bytes = key.encode("utf-8")
+            if len(key_bytes) != 32:
+                # Derive a stable 32-byte key from an arbitrary passphrase.
+                kdf = Scrypt(salt=b"deepfake-detect-v1", length=32,
+                             n=2 ** 14, r=8, p=1)
+                key_bytes = kdf.derive(key_bytes)
+        else:
+            key_bytes = key
+        if len(key_bytes) != 32:
+            raise ValueError("Encryption key must be 32 bytes (got %d)" % len(key_bytes))
+        self.key = key_bytes
 
     def encrypt(self, data: bytes) -> bytes:
-        """Encrypt data using XOR cipher (simple, for demo)."""
-        key_len = len(self.key)
-        encrypted = bytes(
-            b ^ self.key[i % key_len]
-            for i, b in enumerate(data)
-        )
-        return encrypted
+        """Encrypt data with AES-256-GCM. Output: nonce(12) || ciphertext || tag(16)."""
+        from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+        nonce = secrets.token_bytes(12)
+        ct = AESGCM(self.key).encrypt(nonce, data, None)
+        return nonce + ct
 
     def decrypt(self, encrypted_data: bytes) -> bytes:
-        """Decrypt data."""
-        return self.encrypt(encrypted_data)
+        """Decrypt data produced by encrypt(). Raises on tampering."""
+        from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+        if len(encrypted_data) < 28:
+            raise ValueError("Ciphertext too short")
+        nonce, ct = encrypted_data[:12], encrypted_data[12:]
+        return AESGCM(self.key).decrypt(nonce, ct, None)
 
     def hash_data(self, data: str) -> str:
         """Create HMAC hash of data."""
@@ -229,6 +266,8 @@ class DataEncryptor:
 
 class AuditLogger:
     """Security audit logging."""
+
+    MAX_ENTRIES = 10_000  # bound in-memory growth; older entries flushed to disk
 
     def __init__(self, log_dir: str = "logs/audit"):
         self.log_dir = Path(log_dir)
@@ -258,6 +297,9 @@ class AuditLogger:
         )
 
         self.entries.append(entry)
+        if len(self.entries) > self.MAX_ENTRIES:
+            self.save_to_file()
+            self.entries.clear()
 
         log_line = (
             f"{entry.timestamp} | {entry.event_type} | {entry.action} | "
@@ -333,8 +375,8 @@ class AuditLogger:
         )
 
     def save_to_file(self) -> Path:
-        """Save audit log to file."""
-        timestamp = datetime.now().strftime("%Y%m%d")
+        """Save audit log to file (timestamped filename avoids same-day overwrites)."""
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         log_file = self.log_dir / f"audit_{timestamp}.json"
 
         import json
@@ -444,20 +486,31 @@ class SecureInferencePipeline:
 
 
 def require_api_key(api_key: str):
-    """Decorator to require API key."""
+    """Decorator to require API key. Fails closed: if no request with headers
+    can be located, the request is rejected instead of silently allowed."""
     def decorator(func: Callable):
         @wraps(func)
         def wrapper(*args, **kwargs):
             from fastapi import Request, HTTPException
-            request = kwargs.get("request") or (args[0] if args else None)
+            request = kwargs.get("request")
+            if request is None:
+                for a in args:
+                    if hasattr(a, "headers") and hasattr(a, "client"):
+                        request = a
+                        break
 
-            if request and hasattr(request, "headers"):
-                provided_key = request.headers.get("x-api-key")
-                if not provided_key or provided_key != api_key:
-                    raise HTTPException(
-                        status_code=401,
-                        detail="Invalid or missing API key"
-                    )
+            if request is None or not hasattr(request, "headers"):
+                raise HTTPException(
+                    status_code=401,
+                    detail="Cannot verify API key for this request",
+                )
+
+            provided_key = request.headers.get("x-api-key", "")
+            if not provided_key or not hmac.compare_digest(provided_key, api_key):
+                raise HTTPException(
+                    status_code=401,
+                    detail="Invalid or missing API key"
+                )
 
             return func(*args, **kwargs)
         return wrapper

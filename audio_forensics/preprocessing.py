@@ -236,7 +236,10 @@ class AudioPreprocessor:
         try:
             from scipy.io import wavfile
             sr, audio = wavfile.read(audio_path)
-            audio = audio.astype(np.float32) / np.iinfo(audio.dtype).max
+            if np.issubdtype(audio.dtype, np.integer):
+                audio = audio.astype(np.float32) / np.iinfo(audio.dtype).max
+            else:
+                audio = audio.astype(np.float32)
             logger.debug(f"Loaded audio with scipy: sr={sr}")
             return audio, sr
         except ImportError:
@@ -299,8 +302,9 @@ class AudioPreprocessor:
         # Check for clipping
         has_clipping = float(np.max(np.abs(audio))) > 0.99
 
-        # Check for silence
-        has_silence = rms_level < self.config.silence_threshold_db / 100
+        # Check for silence: compare RMS in dBFS against the dB threshold
+        rms_db = 20 * np.log10(rms_level + 1e-10)
+        has_silence = rms_db < self.config.silence_threshold_db
 
         return AudioProperties(
             duration=duration,

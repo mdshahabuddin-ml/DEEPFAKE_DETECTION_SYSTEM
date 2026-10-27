@@ -61,18 +61,71 @@ st.set_page_config(
 # ---------------------------------------------------------------------------
 st.markdown("""
 <style>
-    /* Global */
-    .stApp { background-color: #0e1117; color: #e0e0e0; }
-    section[data-testid="stSidebar"] { background-color: #1a1a2e; }
-    section[data-testid="stSidebar"] .stRadio label { color: #e0e0e0; font-size: 14px; padding: 4px 0; }
-    section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] label { color: #e0e0e0; }
+    /* Global — Deepfake Detector dark futuristic theme (reference match) */
+    .stApp { background-color: #05080f; color: #dbe4f0; }
+    .block-container { padding-top: 1.2rem; padding-bottom: 2rem; max-width: 1400px; }
+    section[data-testid="stSidebar"] { background-color: #0a0f1d; border-right: 1px solid #141f33; }
+    section[data-testid="stSidebar"] > div { padding-top: 1rem; }
+    section[data-testid="stSidebar"] .stRadio label { color: #c4cfdf !important; font-size: 13.5px !important; padding: 0 !important; }
+    section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] { gap: 2px; }
+    section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] > label {
+        background: transparent; border: 1px solid transparent; border-radius: 10px;
+        padding: 9px 12px !important; margin: 1px 0 !important; transition: all .18s ease;
+    }
+    section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] > label:hover {
+        background: rgba(47,123,255,.08); border-color: rgba(47,123,255,.18);
+    }
+    section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] > label[data-checked="true"] {
+        background: linear-gradient(135deg, #1d5cff 0%, #1a3a9e 100%) !important;
+        border-color: rgba(80,140,255,.5) !important;
+        box-shadow: 0 4px 16px rgba(29,92,255,.35);
+    }
+    section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] > label[data-checked="true"] p {
+        color: #fff !important; font-weight: 700 !important;
+    }
+    /* nav icons via nth-child */
+    section[data-testid="stSidebar"] div[role="radiogroup"] > label:nth-of-type(1) p::before { content: "⌂  "; font-weight: 700; }
+    section[data-testid="stSidebar"] div[role="radiogroup"] > label:nth-of-type(2) p::before { content: "◫  "; }
+    section[data-testid="stSidebar"] div[role="radiogroup"] > label:nth-of-type(3) p::before { content: "▶  "; }
+    section[data-testid="stSidebar"] div[role="radiogroup"] > label:nth-of-type(4) p::before { content: "♫  "; }
+    section[data-testid="stSidebar"] div[role="radiogroup"] > label:nth-of-type(5) p::before { content: "◉  "; }
+    section[data-testid="stSidebar"] div[role="radiogroup"] > label:nth-of-type(6) p::before { content: "((•))  "; }
+    section[data-testid="stSidebar"] div[role="radiogroup"] > label:nth-of-type(7) p::before { content: "⊕  "; }
+    section[data-testid="stSidebar"] div[role="radiogroup"] > label:nth-of-type(8) p::before { content: "◷  "; }
+    section[data-testid="stSidebar"] div[role="radiogroup"] > label:nth-of-type(9) p::before { content: "▂▄  "; }
+    section[data-testid="stSidebar"] div[role="radiogroup"] > label:nth-of-type(10) p::before { content: "ⓘ  "; }
 
-    /* Sidebar header */
-    .sidebar-header { padding: 0 0 10px 0; border-bottom: 1px solid #333; margin-bottom: 15px; }
-    .sidebar-header h2 { color: #fff; margin: 0; font-size: 22px; font-weight: 700; }
-    .sidebar-header p { color: #888; margin: 4px 0 0 0; font-size: 13px; }
+    /* Sidebar header — shield logo */
+    .sidebar-header { padding: 6px 4px 14px 4px; border-bottom: 1px solid #16223a; margin-bottom: 14px; }
+    .sidebar-brand { display: flex; align-items: center; gap: 10px; }
+    .sidebar-brand .shield {
+        width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0;
+        background: linear-gradient(135deg, #12305e, #0a1a35);
+        border: 1.5px solid #2f7bff; display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 0 14px rgba(47,123,255,.4);
+    }
+    .sidebar-brand h2 { color: #fff; margin: 0; font-size: 17px; font-weight: 800; letter-spacing: -.2px; }
+    .sidebar-brand p { color: #5a6b82; margin: 2px 0 0 0; font-size: 11px; }
 
-    /* Nav items */
+    /* Sidebar threshold slider — red accent like reference */
+    section[data-testid="stSidebar"] .stSlider div[data-baseweb="slider"] div[role="slider"] { background-color: #ef4444 !important; border-color: #ef4444 !important; }
+    section[data-testid="stSidebar"] .stSlider div[data-baseweb="slider"] div > div > div { background: linear-gradient(90deg, #ef4444, #3a2330) !important; }
+    .sidebar-threshold-label { color: #8b9bb0; font-size: 10.5px; text-transform: uppercase; letter-spacing: 2px; font-weight: 700; margin: 0 0 2px 0; }
+    .sidebar-threshold-val { color: #ef4444; font-size: 12px; font-weight: 800; text-align: center; margin: 0 0 4px 0; }
+    .sidebar-threshold-hint { color: #6b7d95; font-size: 11.5px; line-height: 1.5; margin: 6px 0 0 0; }
+    .sidebar-device { color: #6b7d95; font-size: 12px; margin: 10px 0 0 0; }
+    .sidebar-device code { color: #22c55e; background: transparent; padding: 0; font-size: 12px; font-weight: 700; }
+    .sidebar-device .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #22c55e; margin-right: 6px; box-shadow: 0 0 8px rgba(34,197,94,.8); }
+
+    /* Sidebar bottom buttons */
+    section[data-testid="stSidebar"] .stButton > button {
+        background: #0f1729 !important; color: #c4cfdf !important;
+        border: 1px solid #1e2f4a !important; border-radius: 10px !important;
+        font-size: 12.5px !important; font-weight: 600 !important; padding: 9px 12px !important;
+    }
+    section[data-testid="stSidebar"] .stButton > button:hover { border-color: #2f7bff !important; color: #fff !important; }
+
+    /* Nav items (legacy) */
     .nav-item { padding: 8px 12px; border-radius: 8px; margin: 2px 0; cursor: pointer; font-size: 14px; }
     .nav-item-active { background: rgba(102, 126, 234, 0.2); color: #667eea; font-weight: 600; }
     .nav-item-inactive { color: #888; }
@@ -518,6 +571,132 @@ st.markdown("""
     .config-row .ck { color: #5a6b7e; }
     .config-row .cv { color: #c0c8d4; font-weight: 500; }
 
+    /* ============ HOME — reference match ============ */
+    .home-topbar { display: flex; justify-content: flex-end; align-items: center; gap: 10px; margin: 0 0 10px 0; }
+    .home-topbar .deploy { color: #c4cfdf; font-size: 13px; font-weight: 600; }
+    .home-topbar .dots { color: #8b9bb0; font-size: 16px; font-weight: 800; letter-spacing: 2px; }
+
+    .home-hero {
+        background:
+            radial-gradient(800px 300px at 15% 0%, rgba(47,123,255,.18), transparent 60%),
+            radial-gradient(700px 320px at 85% 30%, rgba(124,58,237,.16), transparent 60%),
+            linear-gradient(120deg, #0b1230 0%, #0d1533 45%, #080d20 100%);
+        border: 1px solid #1c3a5e; border-radius: 14px;
+        padding: 0; margin-bottom: 16px; overflow: hidden; position: relative;
+    }
+    .home-hero-inner { display: grid; grid-template-columns: 1.15fr .85fr; gap: 0; min-height: 340px; }
+    .home-hero-left { padding: 30px 28px 26px 30px; }
+    .home-hero-badge {
+        display: inline-block; border: 1px solid #2a4a7a; color: #9db8d9;
+        background: rgba(47,123,255,.08); padding: 5px 14px; border-radius: 20px;
+        font-size: 10.5px; font-weight: 700; letter-spacing: 1.6px; margin-bottom: 14px;
+    }
+    .home-hero h1 { color: #fff; margin: 0 0 12px 0; font-size: 40px; line-height: 1.05; font-weight: 800; letter-spacing: -.8px; }
+    .home-hero h1 .grad {
+        background: linear-gradient(90deg, #3b9dff 0%, #5b7cff 45%, #7c5cff 100%);
+        -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .home-hero .sub { color: #9fb0c7; margin: 0 0 20px 0; font-size: 14.5px; line-height: 1.6; max-width: 560px; }
+    .home-cta-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+    .st-key-home_analyze button {
+        background: linear-gradient(135deg, #1e90ff 0%, #1a5cff 100%) !important;
+        color: #fff !important; border: 1px solid rgba(120,180,255,.6) !important;
+        border-radius: 10px !important; font-weight: 800 !important; font-size: 14px !important;
+        padding: 12px 22px !important; box-shadow: 0 0 22px rgba(30,144,255,.55), inset 0 0 12px rgba(255,255,255,.12) !important;
+    }
+    .st-key-home_live button {
+        background: linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%) !important;
+        color: #fff !important; border: 1px solid rgba(180,140,255,.5) !important;
+        border-radius: 10px !important; font-weight: 800 !important; font-size: 14px !important;
+        padding: 12px 22px !important; box-shadow: 0 0 22px rgba(124,58,237,.45) !important;
+    }
+    .home-trust { display: flex; gap: 18px; flex-wrap: wrap; }
+    .home-trust .t { display: flex; align-items: center; gap: 8px; color: #a9bad1; font-size: 12.5px; font-weight: 600; }
+    .home-trust .t .ic {
+        width: 26px; height: 26px; border-radius: 7px; display: flex; align-items: center; justify-content: center;
+        background: rgba(47,123,255,.12); border: 1px solid rgba(47,123,255,.25); font-size: 13px;
+    }
+    .home-hero-right { position: relative; min-height: 340px; overflow: hidden;
+        background: #070c18 url("https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=800&q=80&auto=format&fit=crop") center/cover no-repeat; }
+    .home-hero-right::before { content:""; position:absolute; inset:0;
+        background: linear-gradient(90deg, #0b1230 0%, rgba(11,18,48,.2) 22%, rgba(5,8,15,.15) 55%, rgba(5,8,15,.75) 100%); }
+    .home-hero-right::after { content:""; position:absolute; inset:0;
+        background-image: linear-gradient(rgba(47,123,255,.09) 1px, transparent 1px), linear-gradient(90deg, rgba(47,123,255,.09) 1px, transparent 1px);
+        background-size: 26px 26px; pointer-events:none; }
+    .home-scanline { position:absolute; top:0; bottom:0; left:50%; width:2px;
+        background: linear-gradient(180deg, transparent, #3b9dff 20%, #3b9dff 80%, transparent);
+        box-shadow: 0 0 18px 2px rgba(59,157,255,.8); z-index:3; }
+    .home-badge-real { position:absolute; left:12%; top:58%; z-index:4;
+        background: rgba(6,40,20,.9); color:#22c55e; border:1px solid rgba(34,197,94,.7);
+        font-size:12px; font-weight:800; letter-spacing:1px; padding:6px 14px; border-radius:7px;
+        box-shadow:0 0 16px rgba(34,197,94,.5); }
+    .home-badge-fake { position:absolute; right:32%; top:58%; z-index:4;
+        background: rgba(45,8,12,.9); color:#ff6b6b; border:1px solid rgba(239,68,68,.7);
+        font-size:12px; font-weight:800; letter-spacing:1px; padding:6px 14px; border-radius:7px;
+        box-shadow:0 0 16px rgba(239,68,68,.55); }
+    .home-side-pills { position:absolute; right:10px; top:16px; bottom:16px; z-index:4;
+        display:flex; flex-direction:column; gap:10px; justify-content:center; }
+    .home-side-pills .pill {
+        display:flex; align-items:center; gap:8px; background:rgba(10,18,35,.85);
+        border:1px solid #254a7a; color:#bcd0ea; font-size:11.5px; font-weight:800; letter-spacing:.6px;
+        padding:10px 14px; border-radius:9px; min-width:118px; backdrop-filter: blur(6px);
+    }
+    .home-status-grid { display:grid; grid-template-columns: repeat(5, 1fr); gap:12px; margin: 0 0 18px 0; }
+    .home-status-card { background:#0d1526; border:1px solid #1a2b45; border-radius:12px; padding:14px;
+        display:flex; gap:12px; align-items:center; }
+    .home-status-card .sicon { width:46px; height:46px; border-radius:10px; flex-shrink:0;
+        display:flex; align-items:center; justify-content:center; font-size:20px; }
+    .home-status-card .lbl { color:#8b9bb0; font-size:11.5px; font-weight:600; margin:0; }
+    .home-status-card .val { color:#fff; font-size:17px; font-weight:800; margin:2px 0; }
+    .home-status-card .val.green { color:#22c55e; }
+    .home-status-card .hint { color:#5f7191; font-size:11px; margin:0; }
+    .home-section-head { display:flex; justify-content:space-between; align-items:center; margin: 6px 0 12px 0; }
+    .home-section-head h2 { color:#fff; font-size:20px; font-weight:800; margin:0; letter-spacing:-.3px; }
+    .home-section-head a { color:#2f7bff; font-size:12.5px; font-weight:700; text-decoration:none; }
+    .home-cap-grid { display:grid; grid-template-columns: repeat(3, 1fr); gap:12px; margin-bottom:18px; }
+    .home-cap { background:#0d1526; border:1px solid #1a2b45; border-radius:12px; padding:16px;
+        display:flex; gap:12px; align-items:center; transition: all .18s ease; }
+    .home-cap:hover { border-color:#2f7bff; transform: translateY(-1px); box-shadow:0 8px 24px rgba(0,0,0,.35); }
+    .home-cap .cicon { width:48px; height:48px; border-radius:10px; flex-shrink:0;
+        display:flex; align-items:center; justify-content:center; font-size:22px; }
+    .home-cap h4 { color:#fff; margin:0 0 4px 0; font-size:14px; font-weight:700; }
+    .home-cap p { color:#7c8da6; margin:0; font-size:12px; line-height:1.5; }
+    .home-cap .arrow { margin-left:auto; width:32px; height:32px; border-radius:50%; flex-shrink:0;
+        background:#182845; border:1px solid #24406a; color:#9db8d9; display:flex; align-items:center; justify-content:center;
+        font-size:15px; font-weight:700; }
+    .home-how { background:#0a1120; border:1px solid #16263f; border-radius:12px; padding:18px 18px 16px 18px; margin-bottom:10px; }
+    .home-how h2 { color:#fff; font-size:20px; font-weight:800; margin:0 0 14px 0; }
+    .home-steps { display:grid; grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr; gap:8px; align-items:stretch; }
+    .home-step { background:#0f1a2e; border:1px solid #1d3454; border-radius:10px; padding:12px;
+        display:flex; gap:10px; align-items:flex-start; }
+    .home-step.green { border-color: rgba(34,197,94,.4); }
+    .home-step .num { width:34px; height:34px; border-radius:50%; flex-shrink:0;
+        background:#2f7bff; color:#fff; font-size:12.5px; font-weight:800;
+        display:flex; align-items:center; justify-content:center; }
+    .home-step.green .num { background:#22c55e; }
+    .home-step .sic { width:34px; height:34px; border-radius:8px; flex-shrink:0;
+        background:rgba(47,123,255,.12); border:1px solid rgba(47,123,255,.25);
+        display:flex; align-items:center; justify-content:center; font-size:15px; }
+    .home-step h5 { color:#e6edf7; margin:0 0 3px 0; font-size:12.5px; font-weight:700; }
+    .home-step p { color:#6f829e; margin:0; font-size:11.5px; line-height:1.45; }
+    .home-steps .arr { align-self:center; color:#2f7bff; font-size:16px; font-weight:800; }
+    @media (max-width: 1100px) {
+        .home-hero-inner { grid-template-columns: 1fr; }
+        .home-hero-right { min-height: 280px; }
+        .home-hero h1 { font-size: 32px; }
+        .home-status-grid { grid-template-columns: repeat(3, 1fr); }
+        .home-cap-grid { grid-template-columns: repeat(2, 1fr); }
+        .home-steps { grid-template-columns: 1fr 1fr; }
+        .home-steps .arr { display:none; }
+    }
+    @media (max-width: 640px) {
+        .home-hero-left { padding: 20px 18px; }
+        .home-hero h1 { font-size: 26px; }
+        .home-status-grid { grid-template-columns: 1fr 1fr; }
+        .home-cap-grid { grid-template-columns: 1fr; }
+        .home-steps { grid-template-columns: 1fr; }
+    }
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -640,47 +819,64 @@ transform = get_val_transforms(IMG_SIZE)
 with st.sidebar:
     st.markdown("""
     <div class="sidebar-header">
-        <h2>Deepfake Detector</h2>
+        <div class="sidebar-brand">
+            <div class="shield">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5ea0ff" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><circle cx="12" cy="10" r="2.2" fill="#5ea0ff" stroke="none"/><path d="M7.5 10h2M14.5 10h2" stroke="#5ea0ff" stroke-width="1.6"/></svg>
+            </div>
+            <div>
+                <h2>Deepfake Detector</h2>
+                <p>AI Security Suite</p>
+            </div>
+        </div>
     </div>
     """, unsafe_allow_html=True)
 
-    # Navigation via radio
+    # Navigation via radio — options unchanged, key added for Home CTA navigation
+    NAV_OPTIONS = ["Home", "Image Detection", "Video Detection", "Audio Detection",
+         "Webcam Detection", "Live Detection", "Grad-CAM", "Prediction History", "Dashboard", "About"]
+    if "nav" not in st.session_state:
+        st.session_state.nav = "Home"
+    if st.session_state.get("_pending_nav"):
+        st.session_state.nav = st.session_state.pop("_pending_nav")
+    try:
+        default_idx = NAV_OPTIONS.index(st.session_state.nav)
+    except ValueError:
+        default_idx = 0
     page = st.radio(
         "Navigation",
-        ["Home", "Image Detection", "Video Detection", "Audio Detection",
-         "Webcam Detection", "Live Detection", "Grad-CAM", "Prediction History", "Dashboard", "About"],
+        NAV_OPTIONS,
+        index=default_idx,
         label_visibility="collapsed",
+        key="nav",
     )
 
-    st.markdown("---")
+    st.markdown('<p class="sidebar-threshold-label" style="margin-top:14px;">Decision Threshold</p>', unsafe_allow_html=True)
 
-    # Decision threshold
-    st.markdown('<p class="section-label">Decision Threshold</p>', unsafe_allow_html=True)
+    # Decision threshold — same variable name/logic, red accent via CSS
     threshold = st.slider("Decision threshold", 0.0, 1.0, DEFAULT_THRESHOLD, 0.01,
                           label_visibility="collapsed")
+    st.markdown(f'<p class="sidebar-threshold-val">{threshold:.2f}</p>', unsafe_allow_html=True)
     st.markdown(
-        f'<p style="color:#888;font-size:12px;margin:0;">'
-        f'Verdict fires at <span style="color:#667eea;font-weight:700;">{threshold:.2f}</span> '
+        f'<p class="sidebar-threshold-hint">'
+        f'Verdict fires at <span style="color:#ef4444;font-weight:800;">{threshold:.2f}</span> '
         f'&mdash; lower values flag more samples as fake</p>',
         unsafe_allow_html=True,
     )
 
-    st.markdown('<br>', unsafe_allow_html=True)
-
-    # Device and model info
+    # Device and model info — same data, reference styling
     st.markdown(
-        f'<p style="color:#888;font-size:12px;">'
-        f'<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#28a745;margin-right:6px;"></span>'
-        f'Device: <code>{device}</code> &nbsp;|&nbsp; Model: <code>{MODEL_NAME}</code></p>',
+        f'<p class="sidebar-device">'
+        f'<span class="dot"></span>'
+        f'Device:&nbsp; <code>{device}</code> &nbsp;|&nbsp; Model:&nbsp; <code>{MODEL_NAME}</code></p>',
         unsafe_allow_html=True,
     )
 
-    st.markdown("---")
+    st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
 
-    # Logout / Change password placeholders
-    if st.button("Log out", use_container_width=True):
+    # Logout / Change password placeholders — logic unchanged
+    if st.button("⎋ &nbsp; Log out", width="stretch"):
         st.info("Logout functionality requires authentication setup.")
-    if st.button("Change my password", use_container_width=True):
+    if st.button("⚿ &nbsp; Change my password", width="stretch"):
         st.info("Password change requires authentication setup.")
 
 
@@ -688,92 +884,137 @@ with st.sidebar:
 # Pages
 # ---------------------------------------------------------------------------
 
-# --- HOME ---
+# --- HOME — redesigned to match reference, logic unchanged ---
 if page == "Home":
     st.markdown("""
-    <div class="hero-section">
-        <div class="hero-badge">AI SECURITY</div>
-        <h1>AI-Powered Explainable Deepfake Detection</h1>
-        <p>
-            Detect whether an image, video, or live webcam stream is authentic or manipulated.
-            Confidence scores and Grad-CAM explainability provide transparent, auditable
-            decision support for media verification.
-        </p>
+    <div class="home-topbar"><span class="deploy">Deploy</span><span class="dots">⋮</span></div>
+    <div class="home-hero">
+      <div class="home-hero-inner">
+        <div class="home-hero-left">
+          <div class="home-hero-badge">AI SECURITY &nbsp;•&nbsp; DIGITAL FORENSICS</div>
+          <h1>AI-Powered <span class="grad">Deepfake Detection</span></h1>
+          <p class="sub">Detect whether an image, video, audio, or live webcam stream is authentic or manipulated using deep learning and explainable AI.</p>
+        </div>
+        <div class="home-hero-right">
+          <div class="home-scanline"></div>
+          <div class="home-badge-real">REAL</div>
+          <div class="home-badge-fake">FAKE</div>
+          <div class="home-side-pills">
+            <div class="pill"><span class="ic">🖼</span> IMAGE</div>
+            <div class="pill"><span class="ic">▶</span> VIDEO</div>
+            <div class="pill"><span class="ic">♫</span> AUDIO</div>
+            <div class="pill"><span class="ic">◉</span> WEBCAM</div>
+          </div>
+        </div>
+      </div>
     </div>
     """, unsafe_allow_html=True)
 
-    # Model info cards
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        st.markdown("""
-        <div class="info-card">
-            <h3>Model Architecture</h3>
-            <p>Xception</p>
-        </div>
-        """, unsafe_allow_html=True)
-    with c2:
-        st.markdown("""
-        <div class="info-card">
-            <h3>Input Resolution</h3>
-            <p>299 x 299 px</p>
-        </div>
-        """, unsafe_allow_html=True)
-    with c3:
-        st.markdown(f"""
-        <div class="info-card">
-            <h3>Inference Device</h3>
-            <p>{device.upper()}</p>
-        </div>
-        """, unsafe_allow_html=True)
+    # Hero CTAs — real Streamlit buttons so navigation keeps working (styled via .st-key-*)
+    cta1, cta2, _sp = st.columns([1, 1, 1.4])
+    with cta1:
+        if st.button("🖼 &nbsp; Analyze Image &nbsp; →", key="home_analyze", width="stretch"):
+            st.session_state["_pending_nav"] = "Image Detection"
+            st.rerun()
+    with cta2:
+        if st.button("◉ &nbsp; Start Live Detection &nbsp; →", key="home_live", width="stretch"):
+            st.session_state["_pending_nav"] = "Live Detection"
+            st.rerun()
 
-    st.markdown('<br><p class="section-label">Capabilities</p>', unsafe_allow_html=True)
+    st.markdown("""
+    <div class="home-trust" style="margin: 4px 0 16px 0;">
+      <div class="t"><span class="ic">🛡</span> Accurate Analysis</div>
+      <div class="t"><span class="ic">⚡</span> Explainable AI (Grad-CAM)</div>
+      <div class="t"><span class="ic">🔒</span> Privacy Focused</div>
+      <div class="t"><span class="ic">📊</span> Multi-Modal Support</div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    # Capability cards
-    row1 = st.columns(3)
-    with row1[0]:
-        st.markdown("""
-        <div class="cap-card">
-            <h4>Image Detection</h4>
-            <p>Upload a photo to receive an instant REAL or DEEPFAKE verdict with confidence score and face localization.</p>
-        </div>
-        """, unsafe_allow_html=True)
-    with row1[1]:
-        st.markdown("""
-        <div class="cap-card">
-            <h4>Video Detection</h4>
-            <p>Frame-by-frame analysis with majority voting, per-frame probability tracking, and temporal statistics.</p>
-        </div>
-        """, unsafe_allow_html=True)
-    with row1[2]:
-        st.markdown("""
-        <div class="cap-card">
-            <h4>Real-Time Webcam</h4>
-            <p>Live detection directly from your camera with bounding boxes, smoothed predictions, and real-time FPS display.</p>
-        </div>
-        """, unsafe_allow_html=True)
+    # Status cards row — values wired to live device / threshold / model constants
+    st.markdown(f"""
+    <div class="home-status-grid">
+      <div class="home-status-card">
+        <div class="sicon" style="background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.3);color:#22c55e;">◉</div>
+        <div><p class="lbl">System Status</p><p class="val green">Online</p><p class="hint">All services running</p></div>
+      </div>
+      <div class="home-status-card">
+        <div class="sicon" style="background:rgba(47,123,255,.12);border:1px solid rgba(47,123,255,.3);color:#5ea0ff;">▣</div>
+        <div><p class="lbl">Model</p><p class="val">Xception</p><p class="hint">Deep learning model</p></div>
+      </div>
+      <div class="home-status-card">
+        <div class="sicon" style="background:rgba(124,58,237,.14);border:1px solid rgba(124,58,237,.35);color:#a78bfa;">🖼</div>
+        <div><p class="lbl">Input Resolution</p><p class="val">299 × 299 px</p><p class="hint">Optimized for accuracy</p></div>
+      </div>
+      <div class="home-status-card">
+        <div class="sicon" style="background:rgba(47,123,255,.12);border:1px solid rgba(47,123,255,.3);color:#5ea0ff;">💻</div>
+        <div><p class="lbl">Inference Device</p><p class="val">{device.upper()}</p><p class="hint">Auto GPU/CPU support</p></div>
+      </div>
+      <div class="home-status-card">
+        <div class="sicon" style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);color:#ff6b6b;">⇄</div>
+        <div><p class="lbl">Decision Threshold</p><p class="val">{threshold:.2f}</p><p class="hint">Adjustable sensitivity</p></div>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    row2 = st.columns(3)
-    with row2[0]:
-        st.markdown("""
-        <div class="cap-card">
-            <h4>Grad-CAM Explainability</h4>
-            <p>Visual heatmaps reveal which facial regions influenced the model's decision, enabling transparent audit trails.</p>
+    st.markdown("""
+    <div class="home-section-head"><h2>Core Detection Capabilities</h2><a href="#" onclick="return false;">Explore All Features →</a></div>
+    <div class="home-cap-grid">
+      <div class="home-cap">
+        <div class="cicon" style="background:rgba(34,197,94,.14);border:1px solid rgba(34,197,94,.3);color:#22c55e;">🖼</div>
+        <div><h4>Image Detection</h4><p>Analyze images for potential visual manipulation.</p></div>
+        <div class="arrow">→</div>
+      </div>
+      <div class="home-cap">
+        <div class="cicon" style="background:rgba(124,58,237,.16);border:1px solid rgba(124,58,237,.35);color:#a78bfa;">▶</div>
+        <div><h4>Video Detection</h4><p>Perform frame-level and temporal deepfake analysis.</p></div>
+        <div class="arrow">→</div>
+      </div>
+      <div class="home-cap">
+        <div class="cicon" style="background:rgba(249,115,22,.14);border:1px solid rgba(249,115,22,.3);color:#fb923c;">♫</div>
+        <div><h4>Audio Detection</h4><p>Analyze speech and audio for potential synthetic content.</p></div>
+        <div class="arrow">→</div>
+      </div>
+      <div class="home-cap">
+        <div class="cicon" style="background:rgba(47,123,255,.14);border:1px solid rgba(47,123,255,.3);color:#5ea0ff;">◉</div>
+        <div><h4>Live Webcam</h4><p>Real-time camera-based deepfake analysis.</p></div>
+        <div class="arrow">→</div>
+      </div>
+      <div class="home-cap">
+        <div class="cicon" style="background:rgba(239,68,68,.13);border:1px solid rgba(239,68,68,.3);color:#ff6b6b;">⊕</div>
+        <div><h4>Grad-CAM</h4><p>Visualize image regions influencing model predictions.</p></div>
+        <div class="arrow">→</div>
+      </div>
+      <div class="home-cap">
+        <div class="cicon" style="background:rgba(234,179,8,.14);border:1px solid rgba(234,179,8,.3);color:#facc15;">📊</div>
+        <div><h4>Analytics</h4><p>View prediction history and detection statistics.</p></div>
+        <div class="arrow">→</div>
+      </div>
+    </div>
+    <div class="home-how">
+      <h2>How It Works</h2>
+      <div class="home-steps">
+        <div class="home-step">
+          <div class="num">01</div><div class="sic">⬆</div>
+          <div><h5>Upload Media</h5><p>Provide an image, video, audio file, or live stream.</p></div>
         </div>
-        """, unsafe_allow_html=True)
-    with row2[1]:
-        st.markdown("""
-        <div class="cap-card">
-            <h4>Prediction History</h4>
-            <p>Every analysis is logged to SQLite with timestamps, confidence scores, and source metadata for review.</p>
+        <div class="arr">→</div>
+        <div class="home-step">
+          <div class="num">02</div><div class="sic">⚙</div>
+          <div><h5>AI Analysis</h5><p>Deep learning model analyzes the content.</p></div>
         </div>
-        """, unsafe_allow_html=True)
-    with row2[2]:
-        st.markdown("""
-        <div class="cap-card">
-            <h4>Analytics Dashboard</h4>
-            <p>Aggregate statistics including real vs. fake distribution, average confidence, and inference performance metrics.</p>
+        <div class="arr">→</div>
+        <div class="home-step">
+          <div class="num">03</div><div class="sic">🔍</div>
+          <div><h5>Evidence &amp; Explainability</h5><p>Get confidence scores and Grad-CAM visualization.</p></div>
         </div>
-        """, unsafe_allow_html=True)
+        <div class="arr">→</div>
+        <div class="home-step green">
+          <div class="num">04</div><div class="sic" style="background:rgba(34,197,94,.12);border-color:rgba(34,197,94,.3);">✔</div>
+          <div><h5>Authenticity Assessment</h5><p>Determine if the media is real or fake.</p></div>
+        </div>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
 
 
 # --- IMAGE DETECTION ---
@@ -1452,11 +1693,13 @@ elif page == "Video Detection":
                     st.info("Frame-level probability visualization will appear after analysis.")
 
                 # ---- Multimodal Evidence ----
+                _video_prob_str = f"{video_prob:.3f}" if video_prob is not None else "n/a"
+                _audio_prob_str = f"{audio_prob:.3f}" if audio_prob is not None else "Unavailable"
                 st.markdown(f"""
                 <div class="analysis-card" style="margin-top:16px;">
                     <h4>Multimodal Evidence</h4>
-                    <div class="forensic-detail-row"><span class="dk">Visual Evidence</span><span class="dv">{video_prob:.3f if video_prob else 'n/a'}</span></div>
-                    <div class="forensic-detail-row"><span class="dk">Audio Evidence</span><span class="dv">{audio_prob:.3f if audio_prob else 'Unavailable'}</span></div>
+                    <div class="forensic-detail-row"><span class="dk">Visual Evidence</span><span class="dv">{_video_prob_str}</span></div>
+                    <div class="forensic-detail-row"><span class="dk">Audio Evidence</span><span class="dv">{_audio_prob_str}</span></div>
                     <div class="forensic-detail-row"><span class="dk">Fused Assessment</span><span class="dv">{fused:.3f}</span></div>
                     {"<p style='color:#5a6b7e;font-size:12px;margin:10px 0 0 0;'>Audio evidence unavailable &mdash; assessment based on visual evidence.</p>" if audio_prob is None and not use_fusion else ""}
                 </div>
@@ -1781,459 +2024,13 @@ elif page == "Webcam Detection":
 
 # --- LIVE DETECTION (Webcam + Audio) ---
 elif page == "Live Detection":
-    st.markdown("""
-    <style>
-        .block-container { padding-top: 1.5rem; }
-
-        .ld-hdr {
-            background: linear-gradient(135deg, #0f1923 0%, #1a2332 50%, #0f1923 100%);
-            border: 1px solid #2a3a4e; border-radius: 12px; padding: 18px 24px;
-            margin-bottom: 20px; position: relative; overflow: hidden;
-        }
-        .ld-hdr::before {
-            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
-            background: linear-gradient(90deg, transparent, #667eea, transparent);
-        }
-        .ld-badge {
-            display: inline-flex; align-items: center; gap: 5px;
-            background: rgba(102,126,234,0.12); color: #667eea;
-            padding: 3px 10px; border-radius: 12px; font-size: 9px; font-weight: 700;
-            text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 8px;
-            border: 1px solid rgba(102,126,234,0.2);
-        }
-        .ld-title { color: #e8edf3; margin: 0 0 4px 0; font-size: 20px; font-weight: 700; letter-spacing: -0.3px; }
-        .ld-sub { color: #7a8ba0; margin: 0; font-size: 12px; line-height: 1.4; }
-        .ld-card {
-            background: rgba(20,28,38,0.85); backdrop-filter: blur(12px);
-            border: 1px solid #1e2e3e; border-radius: 12px; padding: 16px 18px;
-        }
-        .ld-card-title {
-            color: #7a8ba0; font-size: 10px; text-transform: uppercase; letter-spacing: 1.2px;
-            margin: 0 0 12px 0; font-weight: 600; padding-bottom: 8px; border-bottom: 1px solid #1e2e3e;
-        }
-        .ld-live {
-            display: inline-flex; align-items: center; gap: 6px;
-            background: rgba(220,53,69,0.12); color: #dc3545;
-            padding: 4px 12px; border-radius: 8px; font-size: 11px; font-weight: 700;
-            letter-spacing: 1px; border: 1px solid rgba(220,53,69,0.25);
-        }
-        .ld-live .ld-dot {
-            width: 7px; height: 7px; border-radius: 50%; background: #dc3545;
-            animation: ld-pulse 1.4s ease-in-out infinite;
-        }
-        @keyframes ld-pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.3; }
-        }
-        .ld-metric {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 6px 0; font-size: 12px;
-        }
-        .ld-metric + .ld-metric { border-top: 1px solid rgba(30,46,62,0.5); }
-        .ld-mk { color: #5a6b7e; }
-        .ld-mv { color: #c0c8d4; font-weight: 600; font-family: 'SF Mono', 'Consolas', monospace; }
-        .ld-legend-item {
-            display: flex; align-items: center; gap: 8px; padding: 5px 0;
-        }
-        .ld-legend-dot {
-            width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
-        }
-        .ld-legend-label { color: #7a8ba0; font-size: 12px; }
-        .ld-ctrl-btn {
-            display: block; width: 100%; padding: 10px 0; border: none; border-radius: 8px;
-            font-size: 12px; font-weight: 700; letter-spacing: 0.8px; cursor: pointer;
-            text-transform: uppercase; text-align: center; transition: all 0.2s;
-        }
-        .ld-ctrl-start { background: rgba(40,167,69,0.15); color: #28a745; border: 1px solid rgba(40,167,69,0.3); }
-        .ld-ctrl-stop { background: rgba(220,53,69,0.15); color: #dc3545; border: 1px solid rgba(220,53,69,0.3); }
-        .ld-preview {
-            background: #0a0e14; border: 1px solid #1e2e3e; border-radius: 12px;
-            overflow: hidden; position: relative;
-        }
-        .ld-verdict-fake {
-            background: rgba(220,53,69,0.12); color: #dc3545;
-            padding: 6px 14px; border-radius: 8px; font-size: 13px; font-weight: 700;
-            letter-spacing: 0.5px; border: 1px solid rgba(220,53,69,0.25);
-            display: inline-flex; align-items: center; gap: 6px;
-        }
-        .ld-verdict-real {
-            background: rgba(40,167,69,0.12); color: #28a745;
-            padding: 6px 14px; border-radius: 8px; font-size: 13px; font-weight: 700;
-            letter-spacing: 0.5px; border: 1px solid rgba(40,167,69,0.25);
-            display: inline-flex; align-items: center; gap: 6px;
-        }
-        .ld-audio-bar {
-            height: 6px; border-radius: 3px; background: #1a2332; overflow: hidden; margin-top: 6px;
-        }
-        .ld-audio-bar-fill {
-            height: 100%; border-radius: 3px; transition: width 0.15s ease;
-        }
-    </style>
-    """, unsafe_allow_html=True)
-
-    st.markdown("""
-    <div class="ld-hdr">
-        <div class="ld-badge">
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
-            MULTIMODAL FORENSICS
-        </div>
-        <h1 class="ld-title">Live Webcam + Audio Detection</h1>
-        <p class="ld-sub">Simultaneous face and voice analysis with fused AI verdict in real time.</p>
-    </div>
-    """, unsafe_allow_html=True)
-
-    try:
-        from collections import deque
-        import threading
-        import av
-        from streamlit_webrtc import webrtc_streamer, WebRtcMode
-
-        # ----------------------------------------------------------------
-        # AudioProcessor - thread-safe mic buffer + inference
-        # ----------------------------------------------------------------
-        class AudioProcessor:
-            def __init__(self, audio_model, device, threshold, sample_rate=16000, duration=4.0):
-                self._model = audio_model
-                self._device = device
-                self._threshold = threshold
-                self._sr = sample_rate
-                self._target_samples = int(sample_rate * duration)
-                self._buffer: list = []
-                self._lock = threading.Lock()
-                self._last_pred: float = 0.0
-                self._last_label: str = "REAL"
-                self._audio_level: float = 0.0
-                self._analysis_count: int = 0
-
-            def add_frame(self, frame: av.AudioFrame):
-                arr = frame.to_ndarray().flatten().astype(np.float32) / 32768.0
-                rms = float(np.sqrt(np.mean(arr ** 2))) if arr.size > 0 else 0.0
-                with self._lock:
-                    self._audio_level = min(rms * 10.0, 1.0)
-                    self._buffer.extend(arr.tolist())
-                    if len(self._buffer) >= self._target_samples:
-                        chunk = np.array(self._buffer[:self._target_samples], dtype=np.float32)
-                        self._buffer = self._buffer[self._target_samples // 2:]
-                        try:
-                            pred = predict_from_array(chunk, self._model, self._device, sr=self._sr)
-                            self._last_pred = pred
-                            self._last_label = "FAKE" if pred >= self._threshold else "REAL"
-                            self._analysis_count += 1
-                        except Exception:
-                            pass
-                return frame
-
-            @property
-            def last_pred(self):
-                with self._lock:
-                    return self._last_pred
-
-            @property
-            def last_label(self):
-                with self._lock:
-                    return self._last_label
-
-            @property
-            def audio_level(self):
-                with self._lock:
-                    return self._audio_level
-
-            @property
-            def analysis_count(self):
-                with self._lock:
-                    return self._analysis_count
-
-        # ---- Load audio model ----
-        _audio_model = None
-        _audio_device = None
-        try:
-            _audio_model, _audio_device = load_audio_detector(
-                AUDIO_MODEL_NAME, AUDIO_CHECKPOINT_PATH, device=device,
-            )
-        except Exception as e:
-            st.warning(f"Audio model could not be loaded ({e}). Audio analysis will be unavailable.")
-
-        # ---- Init shared state ----
-        if "ld_prob_history" not in st.session_state:
-            st.session_state.ld_prob_history = deque(maxlen=8)
-        if "ld_video_pred" not in st.session_state:
-            st.session_state.ld_video_pred = 0.0
-        if "ld_video_label" not in st.session_state:
-            st.session_state.ld_video_label = "REAL"
-        if "ld_fused_pred" not in st.session_state:
-            st.session_state.ld_fused_pred = 0.0
-        if "ld_fused_label" not in st.session_state:
-            st.session_state.ld_fused_label = "REAL"
-        if "ld_audio_pred" not in st.session_state:
-            st.session_state.ld_audio_pred = 0.0
-        if "ld_audio_label" not in st.session_state:
-            st.session_state.ld_audio_label = "REAL"
-        if "ld_audio_level" not in st.session_state:
-            st.session_state.ld_audio_level = 0.0
-        if "ld_analysis_count" not in st.session_state:
-            st.session_state.ld_analysis_count = 0
-        if "ld_faces_detected" not in st.session_state:
-            st.session_state.ld_faces_detected = 0
-        if "ld_fps" not in st.session_state:
-            st.session_state.ld_fps = 0.0
-        if "ld_latency" not in st.session_state:
-            st.session_state.ld_latency = 0.0
-
-        # ---- Create AudioProcessor ----
-        audio_proc = None
-        if _audio_model is not None:
-            audio_proc = AudioProcessor(
-                audio_model=_audio_model, device=_audio_device,
-                threshold=threshold, sample_rate=SAMPLE_RATE,
-            )
-
-        # ---- Main Layout: Preview + Sidebar ----
-        col_preview, col_sidebar = st.columns([3, 1], gap="medium")
-
-        with col_preview:
-            st.markdown("""
-            <div style="margin-bottom:8px;">
-                <div class="ld-card-title" style="border:none;padding:0;margin:0 0 6px 0;">Camera + Mic Preview</div>
-                <div class="ld-live"><span class="ld-dot"></span>LIVE</div>
-            </div>
-            """, unsafe_allow_html=True)
-
-            frame_count = [0]
-            fps_timer = [time.time()]
-
-            def video_frame_callback(frame):
-                t0 = time.time()
-                img = frame.to_ndarray(format="bgr24")
-                box = detect_largest_face(img, face_cascade)
-                prob = None
-                if box is not None:
-                    x0, y0, x1, y1 = box
-                    face = img[y0:y1, x0:x1]
-                    if face.size > 0:
-                        prob = predict_fake_prob(face, model, device, transform)
-                        st.session_state.ld_prob_history.append(prob)
-                        st.session_state.ld_faces_detected += 1
-                smoothed = float(np.mean(st.session_state.ld_prob_history)) if st.session_state.ld_prob_history else 0.0
-                draw_overlay(img, box, prob, threshold, smoothed, fps=0.0, show_help=False)
-
-                # Fusion
-                audio_pred = audio_proc.last_pred if audio_proc else 0.0
-                audio_label = audio_proc.last_label if audio_proc else "REAL"
-                fused = 0.5 * smoothed + 0.5 * audio_pred
-                fused_label = "FAKE" if fused >= threshold else "REAL"
-                st.session_state.ld_video_pred = smoothed
-                st.session_state.ld_video_label = "FAKE" if smoothed >= threshold else "REAL"
-                st.session_state.ld_audio_pred = audio_pred
-                st.session_state.ld_audio_label = audio_label
-                st.session_state.ld_fused_pred = fused
-                st.session_state.ld_fused_label = fused_label
-                if audio_proc:
-                    st.session_state.ld_audio_level = audio_proc.audio_level
-                    st.session_state.ld_analysis_count = audio_proc.analysis_count
-
-                # FPS
-                frame_count[0] += 1
-                elapsed = time.time() - fps_timer[0]
-                if elapsed >= 0.5:
-                    st.session_state.ld_fps = frame_count[0] / elapsed
-                    st.session_state.ld_latency = (time.time() - t0) * 1000
-                    frame_count[0] = 0
-                    fps_timer[0] = time.time()
-
-                return av.VideoFrame.from_ndarray(img, format="bgr24")
-
-            def audio_frame_callback(frame):
-                if audio_proc is not None:
-                    audio_proc.add_frame(frame)
-                return frame
-
-            media_constraints = {"video": True, "audio": True if audio_proc else False}
-
-            webrtc_streamer(
-                key="deepfake-live-multimodal",
-                mode=WebRtcMode.SENDRECV,
-                video_frame_callback=video_frame_callback,
-                audio_frame_callback=audio_frame_callback if audio_proc else None,
-                media_stream_constraints=media_constraints,
-                rtc_configuration={"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]},
-                async_processing=True,
-            )
-
-        with col_sidebar:
-            # ---- Detection Status tile ----
-            _v_label = st.session_state.ld_video_label
-            _v_pred = st.session_state.ld_video_pred
-            _verdict_cls = "ld-verdict-fake" if _v_label == "FAKE" else "ld-verdict-real"
-            _conf_pct = f"{abs(_v_pred - 0.5) * 200:.1f}%"
-            _fake_pct = f"{min(_v_pred * 100, 100):.1f}%"
-            _real_pct = f"{min((1 - _v_pred) * 100, 100):.1f}%"
-
-            st.markdown(f"""
-            <div class="ld-card" style="margin-bottom:12px;">
-                <div class="ld-card-title">Face Detection</div>
-                <div style="margin-bottom:10px;">
-                    <span class="{_verdict_cls}">{_v_label}</span>
-                </div>
-                <div class="ld-metric">
-                    <span class="ld-mk">Confidence</span>
-                    <span class="ld-mv">{_conf_pct}</span>
-                </div>
-                <div style="margin-top:10px;padding-top:8px;border-top:1px solid #1e2e3e;">
-                    <div style="display:flex;gap:16px;">
-                        <div style="text-align:center;flex:1;">
-                            <div style="color:#5a6b7e;font-size:9px;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:2px;">Fake</div>
-                            <div style="color:#dc3545;font-size:16px;font-weight:700;font-family:monospace;">{_fake_pct}</div>
-                        </div>
-                        <div style="text-align:center;flex:1;">
-                            <div style="color:#5a6b7e;font-size:9px;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:2px;">Real</div>
-                            <div style="color:#28a745;font-size:16px;font-weight:700;font-family:monospace;">{_real_pct}</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-
-            # ---- Audio Analysis tile ----
-            _a_label = st.session_state.ld_audio_label
-            _a_pred = st.session_state.ld_audio_pred
-            _a_level = st.session_state.ld_audio_level
-            _a_count = st.session_state.ld_analysis_count
-            _a_cls = "ld-verdict-fake" if _a_label == "FAKE" else "ld-verdict-real"
-            if _audio_model is None:
-                _a_cls = ""
-                _a_label = "UNAVAILABLE"
-                _a_level_text = "No model"
-                _a_bar_color = "#333"
-            else:
-                _a_level_text = f"{_a_level * 100:.0f}%"
-                _a_bar_color = "#28a745" if _a_level < 0.3 else ("#ffc107" if _a_level < 0.6 else "#dc3545")
-
-            st.markdown(f"""
-            <div class="ld-card" style="margin-bottom:12px;">
-                <div class="ld-card-title">Audio Analysis</div>
-                <div style="margin-bottom:8px;">
-                    <span class="{_a_cls}">{_a_label}</span>
-                </div>
-                <div class="ld-metric">
-                    <span class="ld-mk">Fake Probability</span>
-                    <span class="ld-mv">{_a_pred:.4f}</span>
-                </div>
-                <div class="ld-metric">
-                    <span class="ld-mk">Audio Level</span>
-                    <span class="ld-mv">{_a_level_text}</span>
-                </div>
-                <div class="ld-audio-bar">
-                    <div class="ld-audio-bar-fill" style="width:{_a_level * 100:.0f}%;background:{_a_bar_color};"></div>
-                </div>
-                <div class="ld-metric" style="margin-top:6px;">
-                    <span class="ld-mk">Analyses Run</span>
-                    <span class="ld-mv">{_a_count}</span>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-
-            # ---- Fusion Verdict tile ----
-            _f_label = st.session_state.ld_fused_label
-            _f_pred = st.session_state.ld_fused_pred
-            _f_cls = "ld-verdict-fake" if _f_label == "FAKE" else "ld-verdict-real"
-
-            st.markdown(f"""
-            <div class="ld-card" style="margin-bottom:12px;">
-                <div class="ld-card-title">Fusion Verdict</div>
-                <div style="margin-bottom:10px;">
-                    <span class="{_f_cls}">{_f_label}</span>
-                </div>
-                <div class="ld-metric">
-                    <span class="ld-mk">Fused Score</span>
-                    <span class="ld-mv">{_f_pred:.4f}</span>
-                </div>
-                <div class="ld-metric">
-                    <span class="ld-mk">Method</span>
-                    <span class="ld-mv">Weighted Avg</span>
-                </div>
-                <div style="margin-top:8px;padding-top:6px;border-top:1px solid #1e2e3e;">
-                    <div style="display:flex;gap:8px;font-size:10px;">
-                        <span style="color:#667eea;">Video: 50%</span>
-                        <span style="color:#667eea;">Audio: 50%</span>
-                    </div>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-
-            # ---- Performance tile ----
-            st.markdown(f"""
-            <div class="ld-card" style="margin-bottom:12px;">
-                <div class="ld-card-title">Performance</div>
-                <div class="ld-metric">
-                    <span class="ld-mk">FPS</span>
-                    <span class="ld-mv">{st.session_state.ld_fps:.1f}</span>
-                </div>
-                <div class="ld-metric">
-                    <span class="ld-mk">Latency</span>
-                    <span class="ld-mv">{st.session_state.ld_latency:.0f} ms</span>
-                </div>
-                <div class="ld-metric">
-                    <span class="ld-mk">Device</span>
-                    <span class="ld-mv">{device.upper()}</span>
-                </div>
-                <div class="ld-metric">
-                    <span class="ld-mk">Video Model</span>
-                    <span class="ld-mv">{MODEL_NAME.upper()}</span>
-                </div>
-                <div class="ld-metric">
-                    <span class="ld-mk">Audio Model</span>
-                    <span class="ld-mv">{AUDIO_MODEL_NAME.upper()}</span>
-                </div>
-                <div class="ld-metric">
-                    <span class="ld-mk">Threshold</span>
-                    <span class="ld-mv">{threshold:.2f}</span>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-
-            # ---- Detection Legend tile ----
-            st.markdown("""
-            <div class="ld-card" style="margin-bottom:12px;">
-                <div class="ld-card-title">Detection Legend</div>
-                <div class="ld-legend-item">
-                    <div class="ld-legend-dot" style="background:#28a745;"></div>
-                    <span class="ld-legend-label"><strong style="color:#28a745;">REAL</strong> &mdash; Authentic</span>
-                </div>
-                <div class="ld-legend-item">
-                    <div class="ld-legend-dot" style="background:#dc3545;"></div>
-                    <span class="ld-legend-label"><strong style="color:#dc3545;">FAKE</strong> &mdash; Manipulated</span>
-                </div>
-                <div class="ld-legend-item">
-                    <div class="ld-legend-dot" style="background:#667eea;"></div>
-                    <span class="ld-legend-label"><strong style="color:#667eea;">FUSED</strong> &mdash; Multimodal</span>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-
-            # ---- Camera Controls tile ----
-            st.markdown("""
-            <div class="ld-card">
-                <div class="ld-card-title">Controls</div>
-                <p style="color:#5a6b7e;font-size:11px;margin:0 0 10px 0;line-height:1.5;">
-                    Use the START/STOP buttons on the video player above. Audio is captured automatically when the mic is available.
-                </p>
-                <div style="display:flex;gap:8px;">
-                    <div class="ld-ctrl-btn ld-ctrl-start" style="flex:1;">START</div>
-                    <div class="ld-ctrl-btn ld-ctrl-stop" style="flex:1;">STOP</div>
-                </div>
-                <p style="color:#4a5a6e;font-size:10px;margin:10px 0 0 0;line-height:1.4;">
-                    Green = REAL &bull; Red = FAKE<br>
-                    Fused verdict combines face + voice.
-                </p>
-            </div>
-            """, unsafe_allow_html=True)
-
-    except ImportError:
-        st.info(
-            "In-browser live multimodal detection needs `streamlit-webrtc`:\n\n"
-            "```\npip install streamlit-webrtc\n```\n\n"
-            "You can still use the individual **Webcam Detection** or **Audio Detection** pages."
-        )
+    # Professional live webcam + audio detection (see app/live_detection_page.py).
+    # Engine: src/live_detection.py — reuses realtime_webcam / audio_infer / fusion.
+    from app.live_detection_page import render_live_detection_page
+    render_live_detection_page(
+        model, device, transform, face_cascade, threshold,
+        store_prediction, model_name=MODEL_NAME,
+    )
 
 # --- GRAD-CAM ---
 elif page == "Grad-CAM":
@@ -2622,8 +2419,69 @@ elif page == "Grad-CAM":
 
 # --- PREDICTION HISTORY ---
 elif page == "Prediction History":
-    st.markdown("## Prediction History")
-    st.markdown('<p class="section-label">Review all past analyses stored in the local database</p>', unsafe_allow_html=True)
+    st.markdown("""
+    <style>
+        /* Prediction History — enterprise dashboard treatment (this page only) */
+        .ph-eyebrow {
+            display: inline-flex; align-items: center; gap: 7px;
+            font-size: 10px; font-weight: 700; letter-spacing: 1.6px; color: #667eea;
+            background: rgba(102, 126, 234, 0.08); border: 1px solid rgba(102, 126, 234, 0.22);
+            padding: 4px 12px; border-radius: 20px; margin-bottom: 10px;
+        }
+        .ph-title { color: #e8edf3; margin: 0 0 4px 0; font-size: 24px; font-weight: 700; letter-spacing: -0.3px; }
+        .ph-sub { color: #7a8ba0; margin: 0 0 4px 0; font-size: 13px; }
+        .ph-grid {
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 18px 0 6px 0;
+        }
+        @media (max-width: 1100px) {
+            .ph-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 640px) {
+            .ph-grid { grid-template-columns: 1fr; }
+        }
+        .ph-card {
+            background: #141c26; border: 1px solid #1e2e3e; border-radius: 14px;
+            padding: 18px 20px; display: flex; align-items: center; gap: 14px;
+            transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+        }
+        .ph-card:hover {
+            transform: translateY(-2px); border-color: #3a4a63;
+            box-shadow: 0 8px 24px rgba(102, 126, 234, 0.10);
+        }
+        .ph-icon {
+            width: 40px; height: 40px; border-radius: 10px; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .ph-meta { min-width: 0; }
+        .ph-label {
+            color: #7a8ba0; font-size: 10px; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 1.2px; margin: 0 0 3px 0;
+        }
+        .ph-value { color: #e8edf3; font-size: 24px; font-weight: 700; margin: 0; line-height: 1.1; }
+        .ph-section {
+            background: #141c26; border: 1px solid #1e2e3e; border-radius: 14px;
+            padding: 18px 20px 20px 20px; margin-top: 16px;
+        }
+        .ph-section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+        .ph-section-title { display: flex; align-items: center; gap: 10px; color: #e8edf3; font-size: 15px; font-weight: 700; margin: 0; }
+        .ph-count {
+            font-size: 10px; font-weight: 700; letter-spacing: 1px; color: #8a99ad;
+            background: #0f1620; border: 1px solid #1a2636;
+            padding: 3px 10px; border-radius: 20px; white-space: nowrap;
+        }
+        .ph-legend { display: flex; gap: 14px; margin-top: 12px; font-size: 11px; color: #5a6b7e; }
+        .ph-legend .lg { display: flex; align-items: center; gap: 6px; }
+        .ph-legend .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    </style>
+    <div>
+        <span class="ph-eyebrow">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            FORENSIC RECORDS
+        </span>
+        <p class="ph-title">Prediction History</p>
+        <p class="ph-sub">Review all past analyses stored in the local database</p>
+    </div>
+    """, unsafe_allow_html=True)
 
     db = get_db()
     records = db.recent(limit=200)
@@ -2633,13 +2491,34 @@ elif page == "Prediction History":
     else:
         # Stats
         stats = db.stats()
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Total", stats["total"])
-        c2.metric("Fake", stats["fake"])
-        c3.metric("Real", stats["real"])
-        c4.metric("Avg Confidence", f"{stats['avg_confidence']:.2%}")
-
-        st.markdown("---")
+        st.markdown(f"""
+        <div class="ph-grid">
+            <div class="ph-card">
+                <div class="ph-icon" style="background:rgba(102,126,234,0.1);border:1px solid rgba(102,126,234,0.2);">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#667eea" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+                </div>
+                <div class="ph-meta"><p class="ph-label">Total Analyses</p><p class="ph-value">{stats["total"]}</p></div>
+            </div>
+            <div class="ph-card">
+                <div class="ph-icon" style="background:rgba(220,53,69,0.1);border:1px solid rgba(220,53,69,0.2);">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#dc3545" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                </div>
+                <div class="ph-meta"><p class="ph-label">Fake Detected</p><p class="ph-value">{stats["fake"]}</p></div>
+            </div>
+            <div class="ph-card">
+                <div class="ph-icon" style="background:rgba(40,167,69,0.1);border:1px solid rgba(40,167,69,0.2);">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#28a745" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                </div>
+                <div class="ph-meta"><p class="ph-label">Authentic</p><p class="ph-value">{stats["real"]}</p></div>
+            </div>
+            <div class="ph-card">
+                <div class="ph-icon" style="background:rgba(102,126,234,0.1);border:1px solid rgba(102,126,234,0.2);">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#667eea" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                </div>
+                <div class="ph-meta"><p class="ph-label">Avg Confidence</p><p class="ph-value">{stats['avg_confidence']:.2%}</p></div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
         # Table
         import pandas as pd
@@ -2649,17 +2528,39 @@ elif page == "Prediction History":
         df.columns = ["ID", "File", "Type", "Prediction", "Confidence",
                        "Fake Prob", "Time (s)", "Timestamp"]
 
-        # Color the prediction column
-        def color_prediction(val):
+        # Badge styling for the prediction column
+        def badge_prediction(val):
+            base = ("font-weight: 700; border-radius: 6px; "
+                    "padding: 2px 10px; text-align: center;")
             if val == "FAKE":
-                return "color: #dc3545; font-weight: bold;"
-            return "color: #28a745; font-weight: bold;"
+                return base + "color: #ff6b7a; background-color: rgba(220,53,69,0.12);"
+            if val == "UNCERTAIN":
+                return base + "color: #ffc107; background-color: rgba(255,193,7,0.12);"
+            return base + "color: #3ddc74; background-color: rgba(40,167,69,0.12);"
 
+        st.markdown(f"""
+        <div class="ph-section">
+            <div class="ph-section-head">
+                <p class="ph-section-title">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#667eea" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                    Analysis Records
+                </p>
+                <span class="ph-count">{len(records)} SHOWN</span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
         st.dataframe(
-            df.style.applymap(color_prediction, subset=["Prediction"]),
+            df.style.map(badge_prediction, subset=["Prediction"]),
             use_container_width=True,
             height=400,
         )
+        st.markdown("""
+        <div class="ph-legend">
+            <span class="lg"><span class="dot" style="background:#dc3545;"></span>FAKE — manipulated</span>
+            <span class="lg"><span class="dot" style="background:#28a745;"></span>REAL — authentic</span>
+            <span class="lg"><span class="dot" style="background:#ffc107;"></span>UNCERTAIN — needs review</span>
+        </div>
+        """, unsafe_allow_html=True)
 
         if st.button("Clear History", type="secondary"):
             db.clear()
@@ -2726,7 +2627,8 @@ elif page == "Dashboard":
 
         # Confidence histogram
         st.markdown("### Confidence Distribution")
-        st.bar_chart(df["confidence"].hist(bins=20, edgecolor="#1a2636").sort_values(), use_container_width=True)
+        conf_hist = df["confidence"].value_counts(bins=20).sort_index()
+        st.bar_chart(conf_hist, use_container_width=True)
     else:
         st.info("No data yet. Run some detections to see analytics.")
 
@@ -3353,6 +3255,72 @@ elif page == "About":
     st.markdown("""
     <style>
         .block-container { padding-top: 1.5rem; }
+
+        /* Core Capabilities — professional SaaS cards (About page only) */
+        .cap-pro-head { margin-bottom: 18px; }
+        .cap-pro-eyebrow {
+            display: inline-flex; align-items: center; gap: 7px;
+            font-size: 10px; font-weight: 700; letter-spacing: 1.6px; color: #667eea;
+            background: rgba(102, 126, 234, 0.08); border: 1px solid rgba(102, 126, 234, 0.22);
+            padding: 4px 12px; border-radius: 20px; margin-bottom: 10px;
+        }
+        .cap-pro-status {
+            display: flex; align-items: center; gap: 8px; margin-top: 10px;
+            font-size: 11px; color: #5a6b7e; font-weight: 500;
+        }
+        .cap-pro-status .s-dot { width: 6px; height: 6px; border-radius: 50%; background: #28a745; flex-shrink: 0; }
+        .cap-pro-status strong { color: #8a99ad; font-weight: 600; }
+        .cap-pro-status code {
+            font-family: 'SF Mono', 'Consolas', monospace; font-size: 10px; color: #7a8ba0;
+            background: #0f1620; border: 1px solid #1a2636; border-radius: 5px; padding: 1px 6px;
+        }
+        .cap-pro-grid {
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;
+        }
+        @media (max-width: 1100px) {
+            .cap-pro-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 640px) {
+            .cap-pro-grid { grid-template-columns: 1fr; }
+        }
+        .cap-pro-card {
+            background: #141c26; border: 1px solid #1e2e3e; border-radius: 14px;
+            padding: 22px; min-height: 248px; display: flex; flex-direction: column;
+            transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+        }
+        .cap-pro-card:hover {
+            transform: translateY(-3px); border-color: #3a4a63;
+            box-shadow: 0 8px 24px rgba(102, 126, 234, 0.12);
+        }
+        .cap-pro-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+        .cap-pro-icon {
+            width: 40px; height: 40px; border-radius: 10px; flex-shrink: 0;
+            background: rgba(102, 126, 234, 0.1); border: 1px solid rgba(102, 126, 234, 0.2);
+            display: flex; align-items: center; justify-content: center;
+            transition: border-color 0.25s ease, background 0.25s ease;
+        }
+        .cap-pro-card:hover .cap-pro-icon {
+            border-color: rgba(102, 126, 234, 0.45); background: rgba(102, 126, 234, 0.14);
+        }
+        .cap-pro-index {
+            font-family: 'SF Mono', 'Consolas', monospace; font-size: 11px; font-weight: 600;
+            color: #3a4a5e; letter-spacing: 1px;
+        }
+        .cap-pro-cat {
+            color: #7a8ba0; font-size: 10px; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 1.2px; margin: 0 0 4px 0;
+        }
+        .cap-pro-card h4 { color: #e8edf3; margin: 0 0 8px 0; font-size: 15px; font-weight: 700; letter-spacing: -0.1px; }
+        .cap-pro-card p { color: #7a8ba0; font-size: 12px; line-height: 1.65; margin: 0; flex-grow: 1; }
+        .cap-pro-meta {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-top: 16px; padding-top: 13px; border-top: 1px solid #1e2e3e;
+            font-size: 11px;
+        }
+        .cap-pro-meta .m-label { display: flex; align-items: center; gap: 6px; color: #8a99ad; font-weight: 600; }
+        .cap-pro-meta .m-dot { width: 6px; height: 6px; border-radius: 50%; background: #28a745; flex-shrink: 0; }
+        .cap-pro-meta .m-arrow { color: #667eea; font-size: 13px; transition: transform 0.25s ease; }
+        .cap-pro-card:hover .m-arrow { transform: translateX(3px); }
     </style>
     """, unsafe_allow_html=True)
 
@@ -3414,15 +3382,51 @@ elif page == "About":
 
     # ---- Core Capabilities ----
     st.markdown("""
-    <p class="about-section-title">Core Capabilities</p>
-    <p class="about-section-sub">Multimodal detection across image, video, and audio media.</p>
+    <div class="cap-pro-head">
+        <span class="cap-pro-eyebrow">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            PLATFORM CAPABILITIES
+        </span>
+        <p class="about-section-title">Core Capabilities</p>
+        <p class="about-section-sub">Multimodal detection across image, video, and audio media.</p>
+        <div class="cap-pro-status">
+            <span class="s-dot"></span>
+            <span><strong>All modules operational</strong> &nbsp;·&nbsp; forensic engines <code>Xception</code> <code>EfficientNet</code></span>
+        </div>
+    </div>
     """, unsafe_allow_html=True)
 
+    caps_primary = [
+        ("AI ANALYSIS", "Image Detection", "Analyze images for patterns associated with manipulated or synthetic visual content.", "Deep Learning", '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#667eea" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>'),
+        ("AI ANALYSIS", "Video Detection", "Analyze sampled video frames and temporal evidence for potential manipulation.", "Frame Analysis", '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#667eea" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>'),
+        ("AI ANALYSIS", "Audio Detection", "Analyze speech recordings for patterns associated with synthetic or manipulated audio.", "Audio Forensics", '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#667eea" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>'),
+        ("REAL-TIME AI", "Real-Time Webcam", "Perform real-time visual analysis using the webcam detection pipeline.", "Live Analysis", '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#667eea" stroke-width="2"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>'),
+    ]
+
+    cards_html = "".join(
+        f"""
+        <div class="cap-pro-card">
+            <div class="cap-pro-top">
+                <div class="cap-pro-icon">{icon}</div>
+                <span class="cap-pro-index">{idx}</span>
+            </div>
+            <p class="cap-pro-cat">{cat}</p>
+            <h4>{title}</h4>
+            <p>{desc}</p>
+            <div class="cap-pro-meta">
+                <span class="m-label"><span class="m-dot"></span>{meta}</span>
+                <span class="m-arrow">&#8594;</span>
+            </div>
+        </div>
+        """
+        for idx, (cat, title, desc, meta, icon) in
+        zip(["01", "02", "03", "04"], caps_primary)
+    )
+    st.markdown(f'<div class="cap-pro-grid">{cards_html}</div>', unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
     caps = [
-        ("Image Detection", "Analyze images for patterns associated with manipulated or synthetic visual content.", '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#667eea" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>'),
-        ("Video Detection", "Analyze sampled video frames and temporal evidence for potential manipulation.", '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#667eea" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>'),
-        ("Audio Detection", "Analyze speech recordings for patterns associated with synthetic or manipulated audio.", '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#667eea" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>'),
-        ("Real-Time Webcam", "Perform real-time visual analysis using the webcam detection pipeline.", '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#667eea" stroke-width="2"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>'),
         ("Grad-CAM Explainability", "Visualize image regions that contributed to the model prediction.", '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#667eea" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>'),
         ("Audio-Video Fusion", "Combine available visual and audio evidence for multimodal video analysis.", '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#667eea" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42"/></svg>'),
         ("Prediction History", "Maintain analysis records using the existing prediction history system.", '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#667eea" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>'),

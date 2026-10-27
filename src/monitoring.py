@@ -20,7 +20,10 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any, List
 
-import psutil
+try:
+    import psutil
+except ImportError:  # optional dependency - metrics degrade gracefully
+    psutil = None
 
 from src.logger import get_logger
 
@@ -159,15 +162,21 @@ class ResourceMonitor:
 
     def get_memory_usage(self) -> float:
         """Get memory usage in MB."""
+        if psutil is None:
+            return 0.0
         process = psutil.Process(os.getpid())
         return process.memory_info().rss / 1024 / 1024
 
     def get_cpu_usage(self) -> float:
         """Get CPU usage percentage."""
+        if psutil is None:
+            return 0.0
         return psutil.cpu_percent(interval=0.1)
 
     def get_disk_usage(self) -> float:
         """Get disk usage percentage."""
+        if psutil is None:
+            return 0.0
         disk = psutil.disk_usage('/')
         return disk.percent
 

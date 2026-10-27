@@ -15,13 +15,15 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import os
 import secrets
 import sqlite3
+from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
+from typing import Iterator, List, Optional
 
-from src.config import ADMIN_PASSWORD, ADMIN_USER, AUTH_DB
+from src.config import ADMIN_PASSWORD, ADMIN_USER, AUTH_DB, IS_PRODUCTION
 from src.logger import get_logger
 
 logger = get_logger(__name__)
@@ -65,7 +67,7 @@ class AuthDB:
     def __init__(self, db_path: Path = AUTH_DB, bootstrap_admin: bool = True):
         self.db_path = Path(db_path)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
-        with self._connect() as conn:
+        with self._connection() as conn:
             conn.executescript(_SCHEMA)
         if bootstrap_admin:
             self._bootstrap_admin()
@@ -75,12 +77,53 @@ class AuthDB:
         conn.row_factory = sqlite3.Row
         return conn
 
+    @contextmanager
+    def _connection(self) -> Iterator[sqlite3.Connection]:
+        """Open a connection, commit/rollback, and always close it.
+
+        `with sqlite3.Connection` only manages the transaction - it does NOT
+        close the handle, which leaks file locks (especially on Windows).
+        """
+        conn = self._connect()
+        try:
+            yield conn
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
     def _bootstrap_admin(self) -> None:
         if self.user_exists(ADMIN_USER):
             return
-        self.add_user(ADMIN_USER, ADMIN_PASSWORD, role="admin")
-        logger.warning("Bootstrapped default admin '%s'. CHANGE the password via "
-                       "DEEPFAKE_ADMIN_PASSWORD in production.", ADMIN_USER)
+        # Read at call time (not import time) so env overrides and tests work.
+        password = os.environ.get("DEEPFAKE_ADMIN_PASSWORD", ADMIN_PASSWORD)
+        is_production = os.environ.get(
+            "DEEPFAKE_ENV", ""
+        ).lower() in {"production", "prod"} or IS_PRODUCTION
+        weak = password in {"admin123", "admin", "password", "123456"} or len(password) < 8
+        if weak and is_production:
+            raise RuntimeError(
+                "Refusing to bootstrap admin with a weak/default password in "
+                "production. Set DEEPFAKE_ADMIN_PASSWORD to a strong value "
+                "(min 8 chars) before first start."
+            )
+        if weak:
+            password = secrets.token_urlsafe(16)
+            logger.warning(
+                "Bootstrapped admin '%s' with a RANDOM password (no strong "
+                "DEEPFAKE_ADMIN_PASSWORD was set). It was printed once to the "
+                "console/logs - change it immediately.",
+                ADMIN_USER,
+            )
+            print(f"[auth] Initial admin password for '{ADMIN_USER}': {password}")
+        else:
+            logger.warning(
+                "Bootstrapped admin '%s'. Change DEEPFAKE_ADMIN_PASSWORD in "
+                "production.", ADMIN_USER,
+            )
+        self.add_user(ADMIN_USER, password, role="admin")
 
     # -- writes --------------------------------------------------------------
     def add_user(self, username: str, password: str, role: str = "user") -> bool:
@@ -90,7 +133,7 @@ class AuthDB:
             raise ValueError("Username and password are required.")
         pw_hash, salt = hash_password(password)
         try:
-            with self._connect() as conn:
+            with self._connection() as conn:
                 conn.execute(
                     "INSERT INTO users (username, pw_hash, salt, role, created_at) "
                     "VALUES (?, ?, ?, ?, ?)",
@@ -105,39 +148,41 @@ class AuthDB:
     def set_password(self, username: str, password: str) -> bool:
         """Update a user's password. Returns False if the user doesn't exist."""
         pw_hash, salt = hash_password(password)
-        with self._connect() as conn:
+        with self._connection() as conn:
             cur = conn.execute(
                 "UPDATE users SET pw_hash = ?, salt = ? WHERE username = ?",
                 (pw_hash, salt, username.strip()),
             )
-        return cur.rowcount > 0
+            rowcount = cur.rowcount
+        return rowcount > 0
 
     def delete_user(self, username: str) -> bool:
         """Delete a user. Returns False if the user doesn't exist."""
-        with self._connect() as conn:
+        with self._connection() as conn:
             cur = conn.execute("DELETE FROM users WHERE username = ?",
                                (username.strip(),))
-        if cur.rowcount > 0:
+            rowcount = cur.rowcount
+        if rowcount > 0:
             logger.info("Deleted user '%s'", username)
-        return cur.rowcount > 0
+        return rowcount > 0
 
     def count_by_role(self, role: str) -> int:
         """Number of users with a given role (used to protect the last admin)."""
-        with self._connect() as conn:
+        with self._connection() as conn:
             row = conn.execute("SELECT COUNT(*) FROM users WHERE role = ?",
                                (role,)).fetchone()
         return int(row[0])
 
     # -- reads ---------------------------------------------------------------
     def user_exists(self, username: str) -> bool:
-        with self._connect() as conn:
+        with self._connection() as conn:
             row = conn.execute("SELECT 1 FROM users WHERE username = ?",
                                (username.strip(),)).fetchone()
         return row is not None
 
     def verify_credentials(self, username: str, password: str) -> bool:
         """Return True iff the username exists and the password matches."""
-        with self._connect() as conn:
+        with self._connection() as conn:
             row = conn.execute(
                 "SELECT pw_hash, salt FROM users WHERE username = ?",
                 (username.strip(),)).fetchone()
@@ -146,13 +191,13 @@ class AuthDB:
         return verify_password(password, row["pw_hash"], row["salt"])
 
     def get_role(self, username: str) -> Optional[str]:
-        with self._connect() as conn:
+        with self._connection() as conn:
             row = conn.execute("SELECT role FROM users WHERE username = ?",
                                (username.strip(),)).fetchone()
         return row["role"] if row else None
 
     def list_users(self) -> List[dict]:
-        with self._connect() as conn:
+        with self._connection() as conn:
             rows = conn.execute(
                 "SELECT username, role, created_at FROM users ORDER BY id").fetchall()
         return [dict(r) for r in rows]

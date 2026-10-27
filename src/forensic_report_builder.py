@@ -90,7 +90,7 @@ class ForensicReportBuilder:
             file_hash_sha256=file_hash["sha256"],
             file_hash_md5=file_hash["md5"],
             file_name=Path(file_path).name,
-            file_size=os.path.getsize(file_path),
+            file_size=os.path.getsize(file_path) if os.path.exists(file_path) else 0,
             media_type=self._detect_media_type(file_path),
             analysis_timestamp=datetime.now().isoformat(),
         )
@@ -630,11 +630,11 @@ class ForensicReportBuilder:
             agreement = 1.0 - np.std(scores)
         else:
             agreement = 0.5
-        
-        confidence = agreement
-        
+
+        confidence = float(np.clip(agreement, 0.0, 1.0))
+
         # Compute trust score (0-100, higher = more trustworthy)
-        trust_score = (1.0 - weighted_score) * 100
+        trust_score = float(np.clip((1.0 - weighted_score) * 100, 0.0, 100.0))
         
         # Determine verdict
         if weighted_score >= 0.7:

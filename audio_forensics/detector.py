@@ -30,6 +30,15 @@ from .schemas import AudioStatus
 
 logger = logging.getLogger(__name__)
 
+try:
+    import torch.nn as _nn
+    _ModuleBase = _nn.Module
+    nn = _nn  # module-level alias used by model definitions below
+except ImportError:  # pragma: no cover - torch is a hard dep in production
+    _nn = None
+    _ModuleBase = object
+    nn = None
+
 
 class ModelArchitecture(Enum):
     """Supported model architectures."""
@@ -155,10 +164,13 @@ class AudioDetector:
                 logger.warning(f"Architecture {architecture} not yet implemented")
                 return False
 
-            # Load weights
+            # Load weights (weights_only=True: never unpickle arbitrary code)
             try:
-                state_dict = torch.load(checkpoint_path, map_location=self._device)
-                self._model.load_state_dict(state_dict)
+                state = torch.load(checkpoint_path, map_location=self._device,
+                                   weights_only=True)
+                if isinstance(state, dict) and "model_state_dict" in state:
+                    state = state["model_state_dict"]
+                self._model.load_state_dict(state)
                 self._model.to(self._device)
                 self._model.eval()
                 self._model_loaded = True
@@ -396,7 +408,7 @@ class AudioDetector:
         }
 
 
-class AudioCNNModel:
+class AudioCNNModel(_ModuleBase):
     """Simple CNN model for audio deepfake detection.
 
     Architecture:
@@ -413,48 +425,43 @@ class AudioCNNModel:
             n_mels: Number of mel frequency bands.
             n_classes: Number of output classes.
         """
-        try:
-            import torch.nn as nn
-
-            self.n_mels = n_mels
-            self.n_classes = n_classes
-
-            # Build model as sequential
-            self.features = nn.Sequential(
-                # Block 1
-                nn.Conv2d(1, 32, kernel_size=3, padding=1),
-                nn.BatchNorm2d(32),
-                nn.ReLU(inplace=True),
-                nn.MaxPool2d(2),
-
-                # Block 2
-                nn.Conv2d(32, 64, kernel_size=3, padding=1),
-                nn.BatchNorm2d(64),
-                nn.ReLU(inplace=True),
-                nn.MaxPool2d(2),
-
-                # Block 3
-                nn.Conv2d(64, 128, kernel_size=3, padding=1),
-                nn.BatchNorm2d(128),
-                nn.ReLU(inplace=True),
-                nn.AdaptiveAvgPool2d((1, 1)),
-            )
-
-            self.classifier = nn.Sequential(
-                nn.Flatten(),
-                nn.Linear(128, 64),
-                nn.ReLU(inplace=True),
-                nn.Dropout(0.5),
-                nn.Linear(64, n_classes),
-            )
-
-        except ImportError:
+        if _ModuleBase is object:
             raise DetectorError("PyTorch not available")
+        super().__init__()
+        self.n_mels = n_mels
+        self.n_classes = n_classes
+
+        # Build model as sequential
+        self.features = nn.Sequential(
+            # Block 1
+            nn.Conv2d(1, 32, kernel_size=3, padding=1),
+            nn.BatchNorm2d(32),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(2),
+
+            # Block 2
+            nn.Conv2d(32, 64, kernel_size=3, padding=1),
+            nn.BatchNorm2d(64),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(2),
+
+            # Block 3
+            nn.Conv2d(64, 128, kernel_size=3, padding=1),
+            nn.BatchNorm2d(128),
+            nn.ReLU(inplace=True),
+            nn.AdaptiveAvgPool2d((1, 1)),
+        )
+
+        self.classifier = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(128, 64),
+            nn.ReLU(inplace=True),
+            nn.Dropout(0.5),
+            nn.Linear(64, n_classes),
+        )
 
     def forward(self, x):
         """Forward pass."""
-        import torch
-
         # Ensure correct input shape: (batch, 1, n_mels, n_frames)
         if x.dim() == 3:
             x = x.unsqueeze(1)
@@ -464,7 +471,7 @@ class AudioCNNModel:
         return x
 
 
-class AudioCRNNModel:
+class AudioCRNNModel(_ModuleBase):
     """CRNN model for audio deepfake detection.
 
     Architecture:
@@ -487,48 +494,43 @@ class AudioCRNNModel:
             hidden_size: RNN hidden size.
             num_layers: Number of RNN layers.
         """
-        try:
-            import torch.nn as nn
-
-            self.n_mels = n_mels
-            self.n_classes = n_classes
-
-            # CNN feature extractor
-            self.cnn = nn.Sequential(
-                nn.Conv2d(1, 32, kernel_size=3, padding=1),
-                nn.ReLU(inplace=True),
-                nn.MaxPool2d(2),
-
-                nn.Conv2d(32, 64, kernel_size=3, padding=1),
-                nn.ReLU(inplace=True),
-                nn.MaxPool2d(2),
-            )
-
-            # RNN
-            cnn_output_size = 64 * (n_mels // 4)
-            self.rnn = nn.GRU(
-                input_size=cnn_output_size,
-                hidden_size=hidden_size,
-                num_layers=num_layers,
-                batch_first=True,
-                bidirectional=True,
-            )
-
-            # Classifier
-            self.classifier = nn.Sequential(
-                nn.Linear(hidden_size * 2, 64),  # *2 for bidirectional
-                nn.ReLU(inplace=True),
-                nn.Dropout(0.5),
-                nn.Linear(64, n_classes),
-            )
-
-        except ImportError:
+        if _ModuleBase is object:
             raise DetectorError("PyTorch not available")
+        super().__init__()
+        self.n_mels = n_mels
+        self.n_classes = n_classes
+
+        # CNN feature extractor
+        self.cnn = nn.Sequential(
+            nn.Conv2d(1, 32, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(2),
+
+            nn.Conv2d(32, 64, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(2),
+        )
+
+        # RNN
+        cnn_output_size = 64 * (n_mels // 4)
+        self.rnn = nn.GRU(
+            input_size=cnn_output_size,
+            hidden_size=hidden_size,
+            num_layers=num_layers,
+            batch_first=True,
+            bidirectional=True,
+        )
+
+        # Classifier
+        self.classifier = nn.Sequential(
+            nn.Linear(hidden_size * 2, 64),  # *2 for bidirectional
+            nn.ReLU(inplace=True),
+            nn.Dropout(0.5),
+            nn.Linear(64, n_classes),
+        )
 
     def forward(self, x):
         """Forward pass."""
-        import torch
-
         # Ensure correct input shape
         if x.dim() == 3:
             x = x.unsqueeze(1)

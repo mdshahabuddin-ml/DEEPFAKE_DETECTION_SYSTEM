@@ -83,10 +83,11 @@ DB_PATH: Path = Path(os.getenv("DEEPFAKE_DB", str(PROJECT_ROOT / "results" / "pr
 # User authentication (login page)
 # ---------------------------------------------------------------------------
 AUTH_DB: Path = Path(os.getenv("DEEPFAKE_AUTH_DB", str(PROJECT_ROOT / "results" / "users.db")))
-# A default admin account is created on first run if none exists. CHANGE THIS
-# in production via the environment variables below.
+# A default admin account is created on first run if none exists. The weak
+# default ("admin123") is only permitted outside production; see src/auth.py.
 ADMIN_USER: str = os.getenv("DEEPFAKE_ADMIN_USER", "admin")
 ADMIN_PASSWORD: str = os.getenv("DEEPFAKE_ADMIN_PASSWORD", "admin123")
+IS_PRODUCTION: bool = os.getenv("DEEPFAKE_ENV", "").lower() in {"production", "prod"}
 
 # ---------------------------------------------------------------------------
 # API

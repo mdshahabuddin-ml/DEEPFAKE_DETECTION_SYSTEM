@@ -430,7 +430,8 @@ class DeepfakeDetector:
         # ------------------------------------------------------------
 
         try:
-            checkpoint = torch.load(
+            from src.checkpoint import safe_torch_load
+            checkpoint = safe_torch_load(
                 self.checkpoint_path,
                 map_location=self.device,
             )
@@ -664,6 +665,8 @@ class DeepfakeDetector:
         Returns:
             Dictionary with prediction results
         """
+        import time as _time
+        _t0 = _time.perf_counter()
         image_path = str(image_path)
 
         try:
@@ -692,15 +695,19 @@ class DeepfakeDetector:
 
         label = label_from_prob(probability, self.threshold)
         confidence = confidence_from_prob(probability, self.threshold)
+        _elapsed = round(_time.perf_counter() - _t0, 4)
 
         return {
             "path": image_path,
+            "file_name": Path(image_path).name,
             "label": label,
             "prediction": label,
             "probability_fake": probability,
+            "fake_probability": probability,
             "confidence": confidence,
             "face_detected": face_detected,
             "face_box": box,
+            "inference_time": _elapsed,
         }
 
     # ========================================================================
@@ -854,37 +861,42 @@ class DeepfakeDetector:
         h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         fourcc = cv2.VideoWriter_fourcc(*"mp4v")
         writer = cv2.VideoWriter(output_path, fourcc, fps, (w, h))
+        if not writer.isOpened():
+            cap.release()
+            logger.error("Could not open VideoWriter for %s", output_path)
+            return None
 
-        detector = self.face_detector
-        frame_count = 0
-        total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-        interval = max(1, total // max_frames) if total > 0 else 1
+        try:
+            detector = self.face_detector
+            frame_count = 0
+            total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            interval = max(1, total // max_frames) if total > 0 else 1
 
-        while True:
-            ret, frame = cap.read()
-            if not ret:
-                break
-            frame_count += 1
-            if frame_count % interval != 0:
-                writer.write(frame)
-                continue
+            while True:
+                ret, frame = cap.read()
+                if not ret:
+                    break
+                frame_count += 1
+                if frame_count % interval != 0:
+                    writer.write(frame)
+                    continue
 
-            boxes = detector.detect_faces(frame)
-            annotated = frame.copy()
-            for box in boxes:
-                face = self._crop_with_margin(frame, box)
-                prob = self._predict_face(face)
-                label = label_from_prob(prob, self.threshold)
-                color = (0, 0, 255) if label == "FAKE" else (0, 200, 0)
-                x0, y0, x1, y1 = box
-                cv2.rectangle(annotated, (x0, y0), (x1, y1), color, 2)
-                text = f"{label} {prob*100:.0f}%"
-                cv2.putText(annotated, text, (x0, y0 - 5),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1, cv2.LINE_AA)
-            writer.write(annotated)
-
-        cap.release()
-        writer.release()
+                boxes = detector.detect_faces(frame)
+                annotated = frame.copy()
+                for box in boxes:
+                    face = self._crop_with_margin(frame, box)
+                    prob = self._predict_face(face)
+                    label = label_from_prob(prob, self.threshold)
+                    color = (0, 0, 255) if label == "FAKE" else (0, 200, 0)
+                    x0, y0, x1, y1 = box
+                    cv2.rectangle(annotated, (x0, y0), (x1, y1), color, 2)
+                    text = f"{label} {prob*100:.0f}%"
+                    cv2.putText(annotated, text, (x0, y0 - 5),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1, cv2.LINE_AA)
+                writer.write(annotated)
+        finally:
+            cap.release()
+            writer.release()
         return output_path
 
     # ========================================================================
@@ -908,6 +920,8 @@ class DeepfakeDetector:
         Returns:
             Dictionary with prediction results including frame-level stats
         """
+        import time as _time
+        _t0 = _time.perf_counter()
         video_path = str(video_path)
 
         if not Path(video_path).exists():
@@ -991,8 +1005,10 @@ class DeepfakeDetector:
                     label, confidence * 100, int(np.sum(probabilities_array >= self.threshold)),
                     len(probabilities))
 
+        _elapsed = round(_time.perf_counter() - _t0, 4)
         return {
             "path": video_path,
+            "file_name": Path(video_path).name,
             "label": label,
             "prediction": label,
             "probability_fake": mean_probability,
@@ -1009,6 +1025,7 @@ class DeepfakeDetector:
             "frames_sampled": sampled_frames,
             "frames_with_face": face_frames,
             "frame_probabilities": probabilities,
+            "inference_time": _elapsed,
         }
 
 

@@ -91,7 +91,7 @@ class FrameSampler:
         if method == "uniform":
             return self._uniform_sampling(total_frames)
         elif method == "keyframe":
-            return self._keyframe_sampling(total_frames)
+            return self._keyframe_sampling(total_frames, fps)
         elif method == "adaptive":
             return self._adaptive_sampling(total_frames)
         else:
@@ -105,7 +105,7 @@ class FrameSampler:
         indices = np.linspace(0, total_frames - 1, n_samples, dtype=int)
         return indices.tolist()
 
-    def _keyframe_sampling(self, total_frames: int) -> List[int]:
+    def _keyframe_sampling(self, total_frames: int, fps: float = 30.0) -> List[int]:
         """Sample at regular intervals."""
         interval = max(1, int(fps / self.config.target_fps))
         indices = list(range(0, total_frames, interval))

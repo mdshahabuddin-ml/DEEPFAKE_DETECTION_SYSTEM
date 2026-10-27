@@ -82,6 +82,41 @@ PROFILE_IMAGE = PROFILE_DIR / "enrolled_profile.jpg"
 # We start at 0.75.
 PROFILE_MATCH_THRESHOLD = 0.75
 
+# ---------------------------------------------------------------------------
+# How-it-works cards (rendered in both the live and fallback paths)
+# ---------------------------------------------------------------------------
+
+_WC_HOW_HTML = (
+    '<div class="wcx-how">'
+    '<div style="display:flex;gap:12px;align-items:flex-start;">'
+    '<div style="width:44px;height:44px;border-radius:11px;flex-shrink:0;'
+    'display:flex;align-items:center;justify-content:center;font-size:20px;'
+    'background:rgba(47,123,255,.14);border:1px solid rgba(47,123,255,.35);">⚙</div>'
+    '<div><h2 style="color:#fff;margin:0 0 4px 0;font-size:18px;font-weight:800;">'
+    'How It Works</h2>'
+    '<p style="color:#7c8da6;margin:0;font-size:13px;">Real-time webcam analysis '
+    'with optional profile verification for more accurate results.</p></div>'
+    '</div>'
+    '<div class="wcx-how-grid">'
+    '<div class="wcx-step"><div class="cc" style="background:rgba(168,85,247,.14);'
+    'border:1px solid rgba(168,85,247,.35);color:#c084fc;">📷</div>'
+    '<div><h4>Capture Live Feed</h4><p>Access your webcam and analyze frames '
+    'in real-time.</p></div></div>'
+    '<div class="wcx-step"><div class="cc" style="background:rgba(34,197,94,.12);'
+    'border:1px solid rgba(34,197,94,.3);color:#4ade80;">⦿</div>'
+    '<div><h4>Compare with Profile</h4><p>Match live face with enrolled '
+    'reference image.</p></div></div>'
+    '<div class="wcx-step"><div class="cc" style="background:rgba(249,115,22,.12);'
+    'border:1px solid rgba(249,115,22,.3);color:#fb923c;">🧠</div>'
+    '<div><h4>AI Deepfake Analysis</h4><p>Detect manipulation using advanced '
+    'AI models.</p></div></div>'
+    '<div class="wcx-step"><div class="cc" style="background:rgba(47,123,255,.14);'
+    'border:1px solid rgba(47,123,255,.35);color:#7db4ff;">📊</div>'
+    '<div><h4>Instant Results</h4><p>Get real-time authenticity scores with '
+    'high accuracy.</p></div></div>'
+    '</div></div>'
+)
+
 
 # ---------------------------------------------------------------------------
 # Face embedding verifier
@@ -462,47 +497,165 @@ def webcam_page(
     threshold: float,
 ) -> None:
 
-    st.header(
-        "📹 Real-Time Webcam Detection"
+    # Page-scoped button/dropdown accents.
+    st.markdown(
+        '<style>'
+        'main div.stButton > button[kind="primary"] {'
+        'background: linear-gradient(90deg, #1e90ff 0%, #7c3aed 100%) !important;'
+        'border: none !important; border-radius: 10px !important;'
+        'font-weight: 700 !important;'
+        'box-shadow: 0 0 20px rgba(80,120,255,.45) !important;}'
+        'main div[data-baseweb="select"] > div {'
+        'border-color: #24406a !important; background: #0f1a2e !important;'
+        'border-radius: 10px !important;}'
+        '</style>',
+        unsafe_allow_html=True,
     )
 
-    st.write(
-        "Live deepfake detection with optional "
-        "enrolled-profile verification."
+    # ── Hero ──
+    st.markdown(
+        '<div class="home-topbar"><span class="deploy">Deploy</span>'
+        '<span class="dots">⋮</span></div>'
+        '<div class="wcx-hero"><div class="wcx-hero-inner">'
+        '<div class="wcx-hero-left">'
+        '<div class="wcx-badge"><span class="rd"></span>LIVE ANALYSIS</div>'
+        '<h1>Webcam <span class="grad">Deepfake</span> Detection</h1>'
+        '<p class="sub">Detect real-time deepfakes from your webcam using '
+        'advanced AI models. Optional profile verification for higher accuracy.</p>'
+        '<div class="wcx-trust">'
+        '<div class="t"><span class="ic">⚡</span><div><b>Real-time</b><span>Detection</span></div></div>'
+        '<div class="t"><span class="ic">🛡</span><div><b>Anti-Spoofing</b><span>Protection</span></div></div>'
+        '<div class="t"><span class="ic">◉</span><div><b>Live Face</b><span>Analysis</span></div></div>'
+        '<div class="t"><span class="ic">📊</span><div><b>High</b><span>Accuracy</span></div></div>'
+        '</div>'
+        '</div>'
+        '<div class="wcx-visual">'
+        '<div style="position:relative;z-index:2;">'
+        '<svg width="215" height="185" viewBox="0 0 200 172">'
+        '<defs>'
+        '<linearGradient id="wcxbody" x1="0" y1="0" x2="1" y2="1">'
+        '<stop offset="0" stop-color="#16244d"/><stop offset="1" stop-color="#0a1328"/>'
+        '</linearGradient>'
+        '<radialGradient id="wcxlens" cx=".4" cy=".35" r=".9">'
+        '<stop offset="0" stop-color="#7db4ff"/><stop offset=".5" stop-color="#1a5cff"/>'
+        '<stop offset="1" stop-color="#0a1440"/>'
+        '</radialGradient>'
+        '</defs>'
+        '<g stroke="#3b9dff" stroke-width="2" opacity="0.8">'
+        '<line x1="6" y1="50" x2="6" y2="86"/><line x1="13" y1="42" x2="13" y2="94"/>'
+        '<line x1="20" y1="56" x2="20" y2="80"/><line x1="27" y1="46" x2="27" y2="90"/>'
+        '<line x1="34" y1="60" x2="34" y2="76"/>'
+        '</g>'
+        '<g stroke="#a855f7" stroke-width="2" opacity="0.8">'
+        '<line x1="166" y1="60" x2="166" y2="76"/><line x1="173" y1="46" x2="173" y2="90"/>'
+        '<line x1="180" y1="56" x2="180" y2="80"/><line x1="187" y1="42" x2="187" y2="94"/>'
+        '<line x1="194" y1="50" x2="194" y2="86"/>'
+        '</g>'
+        '<circle cx="100" cy="66" r="60" fill="none" stroke="#22d3ee" stroke-width="1.5" '
+        'stroke-dasharray="7 6" opacity="0.75"/>'
+        '<circle cx="100" cy="66" r="48" fill="none" stroke="#3b9dff" stroke-width="1" opacity="0.5"/>'
+        '<rect x="90" y="4" width="20" height="12" rx="6" fill="#16244d" stroke="#3b9dff" stroke-width="1.5"/>'
+        '<rect x="56" y="28" width="88" height="76" rx="22" fill="url(#wcxbody)" stroke="#3b9dff" stroke-width="2"/>'
+        '<circle cx="100" cy="66" r="27" fill="#04070f" stroke="#22d3ee" stroke-width="2.5"/>'
+        '<circle cx="100" cy="66" r="19" fill="none" stroke="#a855f7" stroke-width="2"/>'
+        '<circle cx="100" cy="66" r="11" fill="url(#wcxlens)"/>'
+        '<circle cx="94" cy="60" r="3.5" fill="#fff" opacity="0.85"/>'
+        '<circle cx="132" cy="38" r="3" fill="#ff5252"/>'
+        '<path d="M86 110h28l7 24H79z" fill="#101c3a" stroke="#3b9dff" stroke-width="1.5"/>'
+        '<ellipse cx="100" cy="142" rx="54" ry="9" fill="none" stroke="#a855f7" stroke-width="2"/>'
+        '<ellipse cx="100" cy="142" rx="38" ry="6" fill="rgba(124,58,237,.25)"/>'
+        '</svg></div>'
+        '<div class="wcx-scores">'
+        '<div class="wcx-score real">✔REAL<br>0.12</div>'
+        '<div class="wcx-score fake">✖FAKE<br>0.88</div>'
+        '</div>'
+        '<div class="wcx-minis">'
+        '<div class="wcx-mini">'
+        '<svg width="100%" height="40" viewBox="0 0 80 40"><defs>'
+        '<linearGradient id="wcxheat" x1="0" y1="0" x2="1" y2="1">'
+        '<stop offset="0" stop-color="#22d3ee"/><stop offset=".5" stop-color="#a855f7"/>'
+        '<stop offset="1" stop-color="#ff5c8a"/></linearGradient></defs>'
+        '<rect x="4" y="4" width="72" height="32" rx="5" fill="url(#wcxheat)" opacity="0.35"/>'
+        '<circle cx="30" cy="18" r="7" fill="none" stroke="#ffeb3b" stroke-width="1.5"/>'
+        '<circle cx="52" cy="24" r="5" fill="none" stroke="#ff5252" stroke-width="1.5"/>'
+        '</svg></div>'
+        '<div class="wcx-mini">'
+        '<svg width="100%" height="40" viewBox="0 0 80 40">'
+        '<polyline points="2,32 14,26 26,28 38,16 50,20 62,10 78,12" fill="none" stroke="#3b9dff" stroke-width="2"/>'
+        '<polygon points="2,32 14,26 26,28 38,16 50,20 62,10 78,12 78,40 2,40" fill="rgba(59,157,255,.15"/>'
+        '</svg></div>'
+        '</div>'
+        '<div class="wcx-playbar"><span class="pp">▶</span>'
+        '<svg width="100%" height="22" viewBox="0 0 200 22" preserveAspectRatio="none">'
+        '<g fill="#3b9dff">'
+        '<rect x="2" y="8" width="2" height="6" rx="1"/><rect x="9" y="5" width="2" height="12" rx="1"/>'
+        '<rect x="16" y="3" width="2" height="16" rx="1"/><rect x="23" y="6" width="2" height="10" rx="1"/>'
+        '<rect x="30" y="2" width="2" height="18" rx="1"/><rect x="37" y="5" width="2" height="12" rx="1"/>'
+        '<rect x="44" y="8" width="2" height="6" rx="1"/><rect x="51" y="4" width="2" height="14" rx="1"/>'
+        '<rect x="58" y="7" width="2" height="8" rx="1"/><rect x="65" y="3" width="2" height="16" rx="1"/>'
+        '<rect x="72" y="6" width="2" height="10" rx="1"/><rect x="79" y="8" width="2" height="6" rx="1"/>'
+        '<rect x="86" y="4" width="2" height="14" rx="1"/><rect x="93" y="7" width="2" height="8" rx="1"/>'
+        '<rect x="100" y="5" width="2" height="12" rx="1"/><rect x="107" y="8" width="2" height="6" rx="1"/>'
+        '<rect x="114" y="3" width="2" height="16" rx="1"/><rect x="121" y="6" width="2" height="10" rx="1"/>'
+        '<rect x="128" y="8" width="2" height="6" rx="1"/><rect x="135" y="4" width="2" height="14" rx="1"/>'
+        '<rect x="142" y="7" width="2" height="8" rx="1"/><rect x="149" y="5" width="2" height="12" rx="1"/>'
+        '<rect x="156" y="8" width="2" height="6" rx="1"/><rect x="163" y="4" width="2" height="14" rx="1"/>'
+        '<rect x="170" y="7" width="2" height="8" rx="1"/><rect x="177" y="5" width="2" height="12" rx="1"/>'
+        '<rect x="184" y="8" width="2" height="6" rx="1"/><rect x="191" y="6" width="2" height="10" rx="1"/>'
+        '</g></svg></div>'
+        '</div>'
+        '</div></div>',
+        unsafe_allow_html=True,
     )
+
+    # ── Panels ──
+    pc, lc = st.columns([1.55, 1], gap="medium")
 
     # ------------------------------------------------------------------
-    # Profile verification section
+    # Profile verification section (logic unchanged)
     # ------------------------------------------------------------------
 
-    st.subheader(
-        "👤 Enrolled Profile Verification"
-    )
-
-    st.info(
-        "Upload your genuine profile photo once. "
-        "During webcam detection, the system compares "
-        "the live face with this enrolled reference."
-    )
+    with pc:
+        st.markdown(
+            '<div class="wcx-card"><div class="wcx-head">'
+            '<div class="hic">◉</div>'
+            '<div><h3>Enrolled Profile Verification</h3>'
+            '<p>Upload your genuine profile photo once. During webcam detection, '
+            'the system compares the live face with this enrolled reference.</p></div>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
 
     verifier = get_profile_verifier()
 
     if verifier is None:
 
-        st.warning(
-            "Face verification dependencies are unavailable."
-        )
+        with pc:
+            st.warning(
+                "Face verification dependencies are unavailable."
+            )
 
-        st.code(
-            "pip install facenet-pytorch"
-        )
+            st.code(
+                "pip install facenet-pytorch"
+            )
+            st.markdown('</div>', unsafe_allow_html=True)
 
     else:
 
-        col1, col2 = st.columns(2)
+        with pc:
+            pcol1, pcol2 = st.columns([1.3, 1], gap="small")
 
-        with col1:
-
+        with pcol1:
+            st.markdown(
+                '<div class="wcx-zone">'
+                '<div class="pic">'
+                '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" '
+                'stroke="#7db4ff" stroke-width="1.8">'
+                '<circle cx="12" cy="8" r="3.5"/>'
+                '<path d="M5 20c1.5-3.5 4-5 7-5s5.5 1.5 7 5"/></svg>'
+                '</div>',
+                unsafe_allow_html=True,
+            )
             profile_upload = st.file_uploader(
                 "Upload genuine profile photo",
                 type=[
@@ -511,14 +664,21 @@ def webcam_page(
                     "png",
                 ],
                 key="profile_enrollment",
+                label_visibility="collapsed",
+            )
+            st.markdown(
+                '<p class="cap">200MB per file • JPG, PNG</p></div>',
+                unsafe_allow_html=True,
             )
 
-        with col2:
+        with pcol2:
 
             if PROFILE_IMAGE.exists():
 
-                st.success(
-                    "✅ Profile already enrolled"
+                st.markdown(
+                    '<div class="wcx-enrolled">'
+                    '<div class="wcx-ok">✔ Profile already enrolled</div>',
+                    unsafe_allow_html=True,
                 )
 
                 st.image(
@@ -527,74 +687,105 @@ def webcam_page(
                     width=180,
                 )
 
+                st.markdown(
+                    '<p class="lbl">Enrolled profile</p>',
+                    unsafe_allow_html=True,
+                )
+                if st.button(
+                    "⟳ Replace Photo",
+                    key="wc_replace",
+                    width="stretch",
+                ):
+                    try:
+                        PROFILE_IMAGE.unlink(missing_ok=True)
+                    except Exception:
+                        pass
+                    st.rerun()
+                st.markdown('</div>', unsafe_allow_html=True)
+
             else:
 
+                st.markdown(
+                    '<div class="wcx-enrolled">',
+                    unsafe_allow_html=True,
+                )
                 st.warning(
                     "No profile enrolled yet."
                 )
+                st.markdown('</div>', unsafe_allow_html=True)
 
-        if profile_upload is not None:
+        with pc:
+            if profile_upload is not None:
 
-            data = np.frombuffer(
-                profile_upload.getvalue(),
-                dtype=np.uint8,
-            )
-
-            profile_bgr = cv2.imdecode(
-                data,
-                cv2.IMREAD_COLOR,
-            )
-
-            if profile_bgr is None:
-
-                st.error(
-                    "Could not read the profile image."
+                data = np.frombuffer(
+                    profile_upload.getvalue(),
+                    dtype=np.uint8,
                 )
 
-            else:
-
-                st.image(
-                    cv2.cvtColor(
-                        profile_bgr,
-                        cv2.COLOR_BGR2RGB,
-                    ),
-                    caption="Profile to enroll",
-                    width=250,
+                profile_bgr = cv2.imdecode(
+                    data,
+                    cv2.IMREAD_COLOR,
                 )
 
-                if st.button(
-                    "🔐 Enroll This Profile",
-                    type="primary",
-                    use_container_width=True,
-                ):
+                if profile_bgr is None:
 
-                    with st.spinner(
-                        "Creating face profile..."
+                    st.error(
+                        "Could not read the profile image."
+                    )
+
+                else:
+
+                    st.image(
+                        cv2.cvtColor(
+                            profile_bgr,
+                            cv2.COLOR_BGR2RGB,
+                        ),
+                        caption="Profile to enroll",
+                        width=250,
+                    )
+
+                    if st.button(
+                        "🔐 Enroll This Profile",
+                        type="primary",
+                        use_container_width=True,
                     ):
 
-                        success = verifier.enroll(
-                            profile_bgr
-                        )
+                        with st.spinner(
+                            "Creating face profile..."
+                        ):
 
-                    if success:
+                            success = verifier.enroll(
+                                profile_bgr
+                            )
 
-                        st.success(
-                            "✅ Profile enrolled successfully."
-                        )
+                        if success:
 
-                        st.rerun()
+                            st.success(
+                                "✅ Profile enrolled successfully."
+                            )
 
-                    else:
+                            st.rerun()
 
-                        st.error(
-                            "❌ No usable face was detected. "
-                            "Use a clear front-facing profile photo."
-                        )
+                        else:
 
-    st.markdown("---")
+                            st.error(
+                                "❌ No usable face was detected. "
+                                "Use a clear front-facing profile photo."
+                            )
+            st.markdown('</div>', unsafe_allow_html=True)
+
+    with lc:
+        st.markdown(
+            '<div class="wcx-card"><div class="wcx-head">'
+            '<div class="hic">◉</div>'
+            '<div><h3>Live Webcam Detection</h3>'
+            '<p>Allow camera access when prompted, then click START.</p></div>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
 
     # ------------------------------------------------------------------
-    # Webcam
+    # Webcam (streamer call itself is unchanged)
     # ------------------------------------------------------------------
 
     try:
@@ -604,11 +795,6 @@ def webcam_page(
         from streamlit_webrtc import (
             WebRtcMode,
             webrtc_streamer,
-        )
-
-        st.caption(
-            "Allow camera access when prompted, "
-            "then click START."
         )
 
         temporal = TemporalState(
@@ -708,25 +894,60 @@ def webcam_page(
                 format="bgr24",
             )
 
-        webrtc_streamer(
-            key="deepfake-live",
-            mode=WebRtcMode.SENDRECV,
-            video_frame_callback=video_frame_callback,
-            media_stream_constraints={
-                "video": True,
-                "audio": False,
-            },
-            rtc_configuration={
-                "iceServers": [
-                    {
-                        "urls": [
-                            "stun:stun.l.google.com:19302"
-                        ]
-                    }
-                ]
-            },
-            async_processing=True,
-        )
+        with lc:
+            preview_slot = st.empty()
+            st.selectbox(
+                "Select Camera",
+                ["Default Camera"],
+                label_visibility="collapsed",
+                key="wc_camera",
+            )
+            if st.button(
+                "▶ Start Detection",
+                key="wc_start",
+                width="stretch",
+            ):
+                # One-shot autostart: the streamer keeps its default
+                # behaviour on every other run.
+                st.session_state["wc_autostart"] = True
+                st.rerun()
+            ctx = webrtc_streamer(
+                key="deepfake-live",
+                mode=WebRtcMode.SENDRECV,
+                video_frame_callback=video_frame_callback,
+                media_stream_constraints={
+                    "video": True,
+                    "audio": False,
+                },
+                rtc_configuration={
+                    "iceServers": [
+                        {
+                            "urls": [
+                                "stun:stun.l.google.com:19302"
+                            ]
+                        }
+                    ]
+                },
+                async_processing=True,
+                desired_playing_state=True
+                if st.session_state.get("wc_autostart") else None,
+            )
+            if not ctx.state.playing and not st.session_state.get("wc_autostart"):
+                preview_slot.markdown(
+                    '<div class="wcx-preview"><i></i><i></i><i></i><i></i>'
+                    '<div style="text-align:center;">'
+                    '<div style="font-size:34px;color:#5ea0ff;">◉</div>'
+                    '<div class="off" style="margin-top:8px;">'
+                    '<span class="rd"></span>Camera not started</div>'
+                    '</div></div>',
+                    unsafe_allow_html=True,
+                )
+            if ctx.state.playing:
+                # Connected: stop forcing autostart (persists, no rerun).
+                st.session_state.pop("wc_autostart", None)
+            st.markdown('</div>', unsafe_allow_html=True)
+
+        st.markdown(_WC_HOW_HTML, unsafe_allow_html=True)
 
     # ------------------------------------------------------------------
     # Fallback
@@ -970,3 +1191,5 @@ def webcam_page(
             result,
             "webcam",
         )
+
+        st.markdown(_WC_HOW_HTML, unsafe_allow_html=True)

@@ -4,6 +4,8 @@ import struct
 import sys
 import tempfile
 
+import pytest
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 from media_forensics.config import MediaForensicsConfig
@@ -186,6 +188,60 @@ def test_integrity_checker():
         print(f"  [PASS] Integrity valid: {result['valid']}")
     finally:
         os.unlink(test_file)
+
+
+def create_test_mp4() -> str:
+    """Create a minimal ISO-BMFF file: 4-byte size + 'ftyp' box."""
+    ftyp_box = struct.pack(">I", 24) + b"ftyp" + b"isom" + struct.pack(">I", 512) + b"isomiso2"
+    return create_test_file(ftyp_box + b"\x00" * 2048, ".mp4")
+
+
+def test_integrity_checker_mp4_ftyp():
+    """MP4 ftyp lives at bytes 4-8, not offset 0 - must still pass."""
+    print("Testing MP4 ftyp offset check...")
+    checker = IntegrityChecker()
+    test_file = create_test_mp4()
+
+    try:
+        result = checker.check_file(test_file)
+        header_check = next(c for c in result["checks"] if c["check"] == "file_header")
+        assert header_check["passed"] is True, (
+            f"valid MP4 failed header check: {header_check}"
+        )
+        print("  [PASS] MP4 ftyp found at offset 4")
+    finally:
+        os.unlink(test_file)
+
+
+def test_integrity_checker_mp4_rejects_bad_header():
+    """A .mp4 without ftyp at offset 4 must fail the header check."""
+    print("Testing MP4 bad header rejection...")
+    checker = IntegrityChecker()
+    test_file = create_test_file(b"NOT_A_REAL_MP4_FILE" + b"\x00" * 2048, ".mp4")
+
+    try:
+        result = checker.check_file(test_file)
+        header_check = next(c for c in result["checks"] if c["check"] == "file_header")
+        assert header_check["passed"] is False
+        assert result["valid"] is False
+        print("  [PASS] Invalid MP4 rejected")
+    finally:
+        os.unlink(test_file)
+
+
+def test_frame_rate_parsing_no_eval():
+    """r_frame_rate must be parsed with Fraction, never eval."""
+    print("Testing safe frame-rate parsing...")
+    analyzer = FormatAnalyzer()
+
+    assert analyzer._parse_frame_rate("30000/1001") == pytest.approx(29.97, abs=0.01)
+    assert analyzer._parse_frame_rate("25/1") == 25.0
+    assert analyzer._parse_frame_rate("0/1") == 0.0
+    assert analyzer._parse_frame_rate("not-a-rate") == 0.0
+    assert analyzer._parse_frame_rate("1/0") == 0.0  # zero division guarded
+    # Injection attempt must NOT execute - just returns 0.0
+    assert analyzer._parse_frame_rate("__import__('os').system('echo pwned')") == 0.0
+    print("  [PASS] Frame rates parsed safely")
 
 
 def test_integrity_checker_nonexistent():
@@ -393,6 +449,9 @@ def run_all_tests():
         test_format_analyzer,
         test_format_analyzer_video,
         test_integrity_checker,
+        test_integrity_checker_mp4_ftyp,
+        test_integrity_checker_mp4_rejects_bad_header,
+        test_frame_rate_parsing_no_eval,
         test_integrity_checker_nonexistent,
         test_integrity_compression,
         test_metadata_analyzer,

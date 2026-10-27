@@ -19,6 +19,11 @@ facenet-pytorch>=2.5.3
 # --- Audio deepfake detection ---
 librosa>=0.10.0
 soundfile>=0.12.1
+# Spectral-gating denoise for the Audio Detection page checkbox
+# (src/audio_inference.py works without it — denoise is skipped if missing)
+noisereduce>=0.2.0
+# Optional: music/vocal separation extra (skipped if not installed)
+# demucs>=4.0
 # Optional: real-time microphone detection (src/realtime_audio.py)
 sounddevice>=0.4.6
 

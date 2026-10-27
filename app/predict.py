@@ -75,3 +75,24 @@ def run_video(detector, uploaded_file, max_frames: Optional[int] = None) -> dict
     result["file_name"] = uploaded_file.name
     store_result(result, "video")
     return result
+
+
+def run_audio(detector, uploaded_file, denoise: bool = False,
+              window_sec: float = 4.0, hop_sec=None) -> dict:
+    """Run audio inference on a Streamlit upload and log it.
+
+    The detector is an ``AudioDeepfakeDetector`` (see
+    ``src/audio_inference.py``). The result dict uses the same keys as the
+    image/video path (prediction, probability_fake / fake_probability,
+    confidence, inference_time, file_name) so ``store_result`` and the
+    History / Dashboard pages work unchanged with ``media_type="audio"``.
+    """
+    path = save_temp_upload(uploaded_file)
+    try:
+        result = detector.predict_audio(path, denoise=denoise,
+                                        window_sec=window_sec, hop_sec=hop_sec)
+    finally:
+        Path(path).unlink(missing_ok=True)
+    result["file_name"] = uploaded_file.name
+    store_result(result, "audio")
+    return result

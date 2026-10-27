@@ -579,7 +579,7 @@ class ContentFingerprint:
         """
         cap = cv2.VideoCapture(video_path)
         if not cap.isOpened():
-            raise ValueError(f"Could not open video: {video_path")
+            raise ValueError(f"Could not open video: {video_path}")
         
         try:
             total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))

@@ -106,7 +106,8 @@ def main():
             f"Checkpoint not found: {checkpoint_path}"
         )
 
-    checkpoint = torch.load(
+    from src.checkpoint import safe_torch_load
+    checkpoint = safe_torch_load(
         checkpoint_path,
         map_location=device
     )

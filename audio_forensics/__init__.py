@@ -22,20 +22,25 @@ Limitations:
 __version__ = "0.1.0"
 __author__ = "Deepfake Detection System"
 
-# Lazy imports to avoid loading heavy dependencies at package import time
-def _lazy_import():
-    """Lazily import core components to reduce startup time."""
-    from .config import AudioForensicsConfig
-    from .schemas import AudioAnalysisResult, SegmentResult
-    return {
-        "AudioForensicsConfig": AudioForensicsConfig,
-        "AudioAnalysisResult": AudioAnalysisResult,
-        "SegmentResult": SegmentResult,
-    }
+_LAZY_IMPORTS = {
+    "AudioForensicsConfig": ("audio_forensics.config", "AudioForensicsConfig"),
+    "AudioAnalysisResult": ("audio_forensics.schemas", "AudioAnalysisResult"),
+    "SegmentResult": ("audio_forensics.schemas", "SegmentResult"),
+}
 
 # Expose public API
-__all__ = [
-    "AudioForensicsConfig",
-    "AudioAnalysisResult",
-    "SegmentResult",
-]
+__all__ = list(_LAZY_IMPORTS)
+
+
+def __getattr__(name):
+    """PEP 562 lazy attribute access - avoids heavy imports at package import."""
+    import importlib
+
+    if name in _LAZY_IMPORTS:
+        module_name, attr = _LAZY_IMPORTS[name]
+        return getattr(importlib.import_module(module_name), attr)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+def __dir__():
+    return sorted(__all__)

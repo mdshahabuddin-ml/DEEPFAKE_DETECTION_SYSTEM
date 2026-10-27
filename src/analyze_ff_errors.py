@@ -129,7 +129,8 @@ def load_trained_model():
             f"Checkpoint not found: {CHECKPOINT}"
         )
 
-    checkpoint = torch.load(
+    from src.checkpoint import safe_torch_load
+    checkpoint = safe_torch_load(
         CHECKPOINT,
         map_location=DEVICE
     )

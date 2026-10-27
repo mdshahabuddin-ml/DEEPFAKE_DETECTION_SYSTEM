@@ -11,10 +11,11 @@ thread-safe (check_same_thread=False + short-lived connections), and dependency
 from __future__ import annotations
 
 import sqlite3
+from contextlib import contextmanager
 from dataclasses import dataclass, asdict
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
+from typing import Iterator, List, Optional
 
 from src.config import DB_PATH
 from src.logger import get_logger
@@ -64,8 +65,25 @@ class PredictionDB:
         conn.row_factory = sqlite3.Row
         return conn
 
+    @contextmanager
+    def _connection(self) -> Iterator[sqlite3.Connection]:
+        """Open a connection, commit/rollback, and always close it.
+
+        `with sqlite3.Connection` only manages the transaction - it does NOT
+        close the handle, which leaks file locks (especially on Windows).
+        """
+        conn = self._connect()
+        try:
+            yield conn
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
     def _init_schema(self) -> None:
-        with self._connect() as conn:
+        with self._connection() as conn:
             conn.executescript(_SCHEMA)
 
     # -- writes --------------------------------------------------------------
@@ -73,7 +91,7 @@ class PredictionDB:
         """Insert a record; returns the new row id."""
         if not record.created_at:
             record.created_at = datetime.now().isoformat(timespec="seconds")
-        with self._connect() as conn:
+        with self._connection() as conn:
             cur = conn.execute(
                 """INSERT INTO predictions
                    (file_name, media_type, prediction, confidence,
@@ -91,7 +109,7 @@ class PredictionDB:
     # -- reads ---------------------------------------------------------------
     def recent(self, limit: int = 100) -> List[dict]:
         """Return the most recent predictions as a list of dicts."""
-        with self._connect() as conn:
+        with self._connection() as conn:
             rows = conn.execute(
                 "SELECT * FROM predictions ORDER BY id DESC LIMIT ?", (limit,)
             ).fetchall()
@@ -99,7 +117,7 @@ class PredictionDB:
 
     def stats(self) -> dict:
         """Aggregate counts and averages for the dashboard."""
-        with self._connect() as conn:
+        with self._connection() as conn:
             total = conn.execute("SELECT COUNT(*) FROM predictions").fetchone()[0]
             fake = conn.execute(
                 "SELECT COUNT(*) FROM predictions WHERE prediction = 'FAKE'"
@@ -120,7 +138,7 @@ class PredictionDB:
 
     def clear(self) -> None:
         """Delete all history (used by the UI 'clear history' action)."""
-        with self._connect() as conn:
+        with self._connection() as conn:
             conn.execute("DELETE FROM predictions")
         logger.warning("Prediction history cleared")
 

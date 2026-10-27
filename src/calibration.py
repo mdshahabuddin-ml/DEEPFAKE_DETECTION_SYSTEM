@@ -12,6 +12,8 @@ Implements:
 
 from __future__ import annotations
 
+import threading
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -60,13 +62,16 @@ class MCDropoutUncertainty:
     def __init__(self, n_forward_passes: int = 30, dropout_rate: float = 0.5):
         """
         Initialize MC Dropout uncertainty estimator.
-        
+
         Args:
             n_forward_passes: Number of stochastic forward passes
             dropout_rate: Dropout rate to use during inference
         """
         self.n_forward_passes = n_forward_passes
         self.dropout_rate = dropout_rate
+        # Serializes model.train()/eval() toggling — concurrent calls on a
+        # shared model would otherwise race on the dropout-layer mode flags.
+        self._lock = threading.Lock()
     
     def _enable_dropout(self, model: nn.Module) -> None:
         """Enable dropout layers during inference."""
@@ -98,18 +103,18 @@ class MCDropoutUncertainty:
             UncertaintyResult with uncertainty metrics
         """
         model.eval()
-        self._enable_dropout(model)
-        
         predictions = []
-        
-        try:
-            with torch.no_grad():
-                for _ in range(self.n_forward_passes):
-                    logits = model(input_tensor)
-                    prob = torch.sigmoid(logits).item()
-                    predictions.append(prob)
-        finally:
-            self._disable_dropout(model)
+
+        with self._lock:
+            self._enable_dropout(model)
+            try:
+                with torch.no_grad():
+                    for _ in range(self.n_forward_passes):
+                        logits = model(input_tensor)
+                        prob = torch.sigmoid(logits).item()
+                        predictions.append(prob)
+            finally:
+                self._disable_dropout(model)
         
         predictions = np.array(predictions)
         

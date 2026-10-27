@@ -43,28 +43,29 @@ def _extract_from_video(mtcnn, video_path, output_path, input_path, every_n_fram
 
     saved = 0
     frame_idx = 0
-    while True:
-        ok, frame = cap.read()
-        if not ok:
-            break
-
-        if frame_idx % every_n_frames == 0:
-            output_file = target_dir / f"frame_{frame_idx:06d}.png"
-            if not output_file.exists():
-                rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                image = Image.fromarray(rgb)
-                try:
-                    if _save_face(mtcnn, image, output_file):
-                        saved += 1
-                except Exception as e:
-                    print(f"Skipping frame {frame_idx} in {video_path.name}: {e}")
-
-            if max_frames is not None and saved >= max_frames:
+    try:
+        while True:
+            ok, frame = cap.read()
+            if not ok:
                 break
 
-        frame_idx += 1
+            if frame_idx % every_n_frames == 0:
+                output_file = target_dir / f"frame_{frame_idx:06d}.png"
+                if not output_file.exists():
+                    rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    image = Image.fromarray(rgb)
+                    try:
+                        if _save_face(mtcnn, image, output_file):
+                            saved += 1
+                    except Exception as e:
+                        print(f"Skipping frame {frame_idx} in {video_path.name}: {e}")
 
-    cap.release()
+                if max_frames is not None and saved >= max_frames:
+                    break
+
+            frame_idx += 1
+    finally:
+        cap.release()
     return saved
 
 

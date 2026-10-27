@@ -364,7 +364,8 @@ class AudioForensicTimelineGenerator:
         <div class="timeline-bar">
 """
 
-        # Add segments
+        # Add segments (guard zero-duration timelines)
+        duration = duration if duration > 0 else 1e-9
         for segment in segments:
             start_pct = (segment.start_time / duration) * 100
             width_pct = ((segment.end_time - segment.start_time) / duration) * 100

@@ -65,8 +65,8 @@ class EvidenceCollector:
         """Collect synchronization evidence."""
         metadata = metadata or {}
 
-        # Low sync score = suspicious
-        anomaly_score = 1.0 - sync_score
+        # Low sync score = suspicious (sync_score is in [0, 1])
+        anomaly_score = float(np.clip(1.0 - sync_score, 0.0, 1.0))
 
         if anomaly_score >= self.config.suspicious_threshold:
             status = "POTENTIAL_MISMATCH"

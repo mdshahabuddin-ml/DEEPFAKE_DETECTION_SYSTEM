@@ -205,7 +205,8 @@ def main():
     # Final test evaluation
     print("\n" + "="*50)
     print("FINAL TEST EVALUATION")
-    ckpt = torch.load(best_path, map_location=device, weights_only=False)
+    from src.checkpoint import safe_torch_load
+    ckpt = safe_torch_load(best_path, map_location=device)
     model.load_state_dict(ckpt["model_state_dict"])
     test_loss, test_auc, test_acc = evaluate(model, test_loader, criterion, device)
     print(f"Test AUC:      {test_auc:.4f}")

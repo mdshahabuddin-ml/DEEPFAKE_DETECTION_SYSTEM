@@ -146,8 +146,8 @@ class AudioSegmenter:
         frame_length = self.config.n_fft
         hop_length = self.config.hop_length
 
-        # Calculate frame energies
-        n_frames = 1 + (len(audio) - frame_length) // hop_length
+        # Calculate frame energies (guard: audio shorter than one frame)
+        n_frames = max(1, 1 + (len(audio) - frame_length) // hop_length)
         energies = np.zeros(n_frames)
 
         for i in range(n_frames):
@@ -199,7 +199,7 @@ class AudioSegmenter:
         hop_length = self.config.hop_length
 
         # Calculate ZCR
-        n_frames = 1 + (len(audio) - frame_length) // hop_length
+        n_frames = max(1, 1 + (len(audio) - frame_length) // hop_length)
         zcr = np.zeros(n_frames)
 
         for i in range(n_frames):
@@ -241,7 +241,7 @@ class AudioSegmenter:
         frame_length = self.config.n_fft
         hop_length = self.config.hop_length
 
-        n_frames = 1 + (len(audio) - frame_length) // hop_length
+        n_frames = max(1, 1 + (len(audio) - frame_length) // hop_length)
         energies = np.zeros(n_frames)
         zcr = np.zeros(n_frames)
 
@@ -446,7 +446,8 @@ class AudioSegmenter:
             List of (chunk, start_time, end_time) tuples.
         """
         chunk_samples = int(max_chunk_duration * sample_rate)
-        hop_samples = int(chunk_samples * (1 - overlap))
+        # overlap=1.0 would give hop=0 (infinite loop) - clamp to 1 sample
+        hop_samples = max(1, int(chunk_samples * (1 - overlap)))
 
         chunks = []
         start = 0

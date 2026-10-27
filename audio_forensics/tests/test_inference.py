@@ -15,7 +15,12 @@ import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 from audio_forensics.config import AudioForensicsConfig
-from audio_forensics.detector import AudioDetector, DetectionResult
+from audio_forensics.detector import (
+    AudioCNNModel,
+    AudioCRNNModel,
+    AudioDetector,
+    DetectionResult,
+)
 from audio_forensics.inference import AudioInferencePipeline, InferenceError
 from audio_forensics.schemas import AudioAnalysisResult, AudioStatus
 
@@ -129,6 +134,84 @@ def test_detector_empty_features():
     assert result.prediction == AudioStatus.UNKNOWN
 
     print("  [PASS] Empty features handled correctly")
+
+
+def test_neural_models_are_nn_modules():
+    """CNN/CRNN models must be real torch Modules (callable, state_dict-able)."""
+    import torch
+    import torch.nn as nn
+
+    for cls in (AudioCNNModel, AudioCRNNModel):
+        model = cls(n_mels=64, n_classes=2)
+        assert isinstance(model, nn.Module), f"{cls.__name__} is not nn.Module"
+        assert callable(model), f"{cls.__name__} is not callable"
+        assert len(list(model.parameters())) > 0, f"{cls.__name__} has no parameters"
+        # state_dict roundtrip (what load_state_dict in load_model expects)
+        assert all(isinstance(v, torch.Tensor) for v in model.state_dict().values())
+
+    print("  [PASS] CNN/CRNN are real nn.Modules")
+
+
+def test_neural_models_forward_pass():
+    """Forward pass on a log-mel-like input yields (batch, n_classes) logits."""
+    import torch
+
+    batch, n_mels, n_frames = 2, 64, 50
+
+    cnn = AudioCNNModel(n_mels=n_mels, n_classes=2)
+    cnn.eval()
+    with torch.no_grad():
+        out = cnn(torch.randn(batch, n_mels, n_frames))
+    assert out.shape == (batch, 2), f"CNN output shape {out.shape}"
+
+    crnn = AudioCRNNModel(n_mels=n_mels, n_classes=2)
+    crnn.eval()
+    with torch.no_grad():
+        out = crnn(torch.randn(batch, n_mels, n_frames))
+    assert out.shape == (batch, 2), f"CRNN output shape {out.shape}"
+
+    print("  [PASS] CNN/CRNN forward pass shapes correct")
+
+
+def test_detector_load_model_roundtrip(tmp_path):
+    """Save a model state_dict and load it back through AudioDetector.load_model."""
+    import torch
+
+    config = AudioForensicsConfig(n_mels=64)
+    detector = AudioDetector(config)
+
+    model = AudioCNNModel(n_mels=64, n_classes=2)
+    ckpt = tmp_path / "cnn_ckpt.pt"
+    torch.save({"model_state_dict": model.state_dict()}, ckpt)
+
+    from audio_forensics.detector import ModelArchitecture
+    ok = detector.load_model(str(ckpt), architecture=ModelArchitecture.CNN)
+    assert ok is True, "load_model failed on a valid checkpoint"
+    assert detector.is_model_loaded is True
+
+    # End-to-end: detect() must now route through the neural model
+    features = np.random.randn(64, 50).astype(np.float32)
+    result = detector.detect(features)
+    assert result.metadata.get("method") == "neural_network"
+    assert 0.0 <= result.probability <= 1.0
+
+    print("  [PASS] Model checkpoint roundtrip + neural inference")
+
+
+def test_detector_load_model_missing_checkpoint(tmp_path):
+    """A missing checkpoint must return False (rules fallback), not raise."""
+    config = AudioForensicsConfig()
+    detector = AudioDetector(config)
+
+    from audio_forensics.detector import ModelArchitecture
+    ok = detector.load_model(
+        str(tmp_path / "does_not_exist.pt"),
+        architecture=ModelArchitecture.CNN,
+    )
+    assert ok is False
+    assert detector.is_model_loaded is False
+
+    print("  [PASS] Missing checkpoint handled gracefully")
 
 
 def test_pipeline_initialization():
@@ -438,6 +521,10 @@ def run_all_tests():
         test_detector_initialization,
         test_detector_rule_based,
         test_detector_empty_features,
+        test_neural_models_are_nn_modules,
+        test_neural_models_forward_pass,
+        test_detector_load_model_roundtrip,
+        test_detector_load_model_missing_checkpoint,
         test_pipeline_initialization,
         test_pipeline_analyze_file,
         test_pipeline_analyze_array,

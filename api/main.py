@@ -18,6 +18,8 @@ Run:
 
 from __future__ import annotations
 
+import hmac
+import os
 import shutil
 import threading
 import time
@@ -34,8 +36,8 @@ from pydantic import BaseModel, Field
 
 from src.config import (
     ALLOWED_IMAGE_EXT, ALLOWED_VIDEO_EXT, API_KEY, API_TITLE, API_VERSION,
-    CHECKPOINT_PATH, DEVICE, IMG_SIZE, MAX_UPLOAD_MB, MODEL_NAME,
-    RATE_LIMIT_PER_MIN, UPLOADS_DIR,
+    CHECKPOINT_PATH, DEVICE, IMG_SIZE, IS_PRODUCTION, MAX_UPLOAD_MB,
+    MODEL_NAME, RATE_LIMIT_PER_MIN, UPLOADS_DIR,
 )
 from src.database import PredictionRecord, get_db
 from src.inference import get_detector
@@ -83,10 +85,26 @@ try:
 except Exception as exc:
     logger.warning("Could not mount advanced router: %s", exc)
 
-# ---------------------------------------------------------------------------: optional API-key auth + in-memory rate limiting.
-# Applies only to inference endpoints; system/docs routes stay open.
 # ---------------------------------------------------------------------------
-_PROTECTED_PREFIXES = ("/predict", "/analyze", "/report", "/localize")
+# Fail closed in production: inference endpoints must never run unauthenticated
+# or unlimited when DEEPFAKE_ENV=production.
+# ---------------------------------------------------------------------------
+if IS_PRODUCTION:
+    _missing = []
+    if not API_KEY:
+        _missing.append("DEEPFAKE_API_KEY")
+    if RATE_LIMIT_PER_MIN <= 0:
+        _missing.append("DEEPFAKE_RATE_LIMIT (> 0)")
+    if _missing:
+        raise RuntimeError(
+            "Refusing to start in production without: " + ", ".join(_missing)
+        )
+
+# ---------------------------------------------------------------------------
+# Optional API-key auth + in-memory rate limiting (non-production).
+# Applies to inference and advanced-forensics endpoints; system/docs stay open.
+# ---------------------------------------------------------------------------
+_PROTECTED_PREFIXES = ("/predict", "/analyze", "/report", "/localize", "/advanced")
 _rate_lock = threading.Lock()
 _request_log: Dict[str, deque] = defaultdict(deque)
 
@@ -111,9 +129,11 @@ async def security_guard(request: Request, call_next):
     path = request.url.path
     if any(path.startswith(p) for p in _PROTECTED_PREFIXES):
         # 1) API-key auth (only enforced when DEEPFAKE_API_KEY is configured)
-        if API_KEY and request.headers.get("x-api-key") != API_KEY:
-            return JSONResponse(status_code=401,
-                                content={"detail": "Invalid or missing API key."})
+        if API_KEY:
+            provided = request.headers.get("x-api-key", "")
+            if not provided or not hmac.compare_digest(provided, API_KEY):
+                return JSONResponse(status_code=401,
+                                    content={"detail": "Invalid or missing API key."})
         # 2) Rate limiting (keyed by API key when present, else client IP)
         client_key = request.headers.get("x-api-key") or (
             request.client.host if request.client else "anonymous")
@@ -248,15 +268,18 @@ def _save_upload(upload: UploadFile, allowed_ext: set) -> Path:
 
 def _store(result: dict, media_type: str) -> None:
     """Persist a successful prediction to the history DB (best-effort)."""
-    if result.get("prediction") in (None, "NO_FACE"):
+    if result.get("prediction") in (None, "NO_FACE", "ERROR"):
         return
     try:
+        _fake = result.get("fake_probability")
+        if _fake is None:
+            _fake = result.get("probability_fake", 0.0)
         get_db().add(PredictionRecord(
             file_name=result.get("file_name", "unknown"),
             media_type=media_type,
             prediction=result["prediction"],
             confidence=float(result.get("confidence") or 0.0),
-            fake_probability=float(result.get("fake_probability") or 0.0),
+            fake_probability=float(_fake or 0.0),
             inference_time=float(result.get("inference_time") or 0.0),
             source="api",
         ))
@@ -266,17 +289,26 @@ def _store(result: dict, media_type: str) -> None:
 
 def _to_response(result: dict, media_type: str) -> PredictionResponse:
     known = {"prediction", "fake_probability", "confidence", "inference_time",
-             "file_name", "message"}
+             "file_name", "message", "probability_fake"}
     details = {k: v for k, v in result.items() if k not in known and k != "threshold"}
     if "message" in result:
         details["message"] = result["message"]
+    # Support both key spellings from different detector versions.
+    fake_prob = result.get("fake_probability")
+    if fake_prob is None:
+        fake_prob = result.get("probability_fake")
+    infer_time = result.get("inference_time", 0.0)
+    try:
+        infer_time = float(infer_time)
+    except (TypeError, ValueError):
+        infer_time = 0.0
     return PredictionResponse(
         file_name=result.get("file_name", "unknown"),
         media_type=media_type,
-        prediction=result["prediction"],
+        prediction=result.get("prediction", "ERROR"),
         confidence=result.get("confidence"),
-        fake_probability=result.get("fake_probability"),
-        inference_time=result["inference_time"],
+        fake_probability=fake_prob,
+        inference_time=infer_time,
         details=details,
     )
 
@@ -441,7 +473,11 @@ def analyze_video_trust(file: UploadFile = File(...)) -> TrustReportResponse:
     path = _save_upload(file, ALLOWED_VIDEO_EXT)
     try:
         try:
-            validate_video_readable(str(path))
+            _cap, _, _ = validate_video_readable(str(path))
+            try:
+                _cap.release()
+            except Exception:
+                pass
         except VideoError as exc:
             raise HTTPException(status_code=400, detail=str(exc))
         report = trust_video(detector, str(path), file_name=file.filename or path.name)

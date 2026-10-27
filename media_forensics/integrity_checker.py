@@ -60,18 +60,23 @@ class IntegrityChecker:
         }
 
     def _check_file_header(self, file_path: str) -> Dict[str, Any]:
-        """Check file header matches extension."""
+        """Check file header matches extension.
+
+        Signatures are (offset, magic) pairs: ISO-BMFF containers (MP4/MOV)
+        store `ftyp` at bytes 4-8, not at offset 0.
+        """
         ext = os.path.splitext(file_path)[1].lower()
 
-        # Expected magic bytes
+        # Expected magic bytes as (offset, magic) pairs
         magic_bytes = {
-            ".mp4": [b"ftyp"],
-            ".wav": [b"RIFF"],
-            ".mp3": [b"ID3", b"\xff\xfb", b"\xff\xf3"],
-            ".jpg": [b"\xff\xd8\xff"],
-            ".png": [b"\x89PNG"],
-            ".gif": [b"GIF8"],
-            ".avi": [b"RIFF"],
+            ".mp4": [(4, b"ftyp")],
+            ".mov": [(4, b"ftyp")],
+            ".wav": [(0, b"RIFF")],
+            ".mp3": [(0, b"ID3"), (0, b"\xff\xfb"), (0, b"\xff\xf3")],
+            ".jpg": [(0, b"\xff\xd8\xff")],
+            ".png": [(0, b"\x89PNG")],
+            ".gif": [(0, b"GIF8")],
+            ".avi": [(0, b"RIFF")],
         }
 
         expected = magic_bytes.get(ext)
@@ -82,7 +87,11 @@ class IntegrityChecker:
             with open(file_path, "rb") as f:
                 header = f.read(16)
 
-            matched = any(header.startswith(magic) for magic in expected)
+            matched = any(
+                len(header) >= offset + len(magic)
+                and header[offset:offset + len(magic)] == magic
+                for offset, magic in expected
+            )
             return {
                 "check": "file_header",
                 "passed": matched,

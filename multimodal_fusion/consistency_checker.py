@@ -95,7 +95,9 @@ class ConsistencyChecker:
         if not correlations:
             return 0.5
 
-        return float(np.mean(correlations))
+        # Pearson correlation spans [-1, 1]; sync_score contract is [0, 1].
+        # Negative correlation = anti-correlated streams = zero consistency.
+        return float(np.clip(np.mean(correlations), 0.0, 1.0))
 
     def check_lip_sync(
         self,
@@ -127,6 +129,8 @@ class ConsistencyChecker:
         correlation = float(np.corrcoef(audio, mouth)[0, 1])
         if np.isnan(correlation):
             correlation = 0.5
+        # Keep sync_score within [0, 1] (Pearson can be negative)
+        correlation = float(np.clip(correlation, 0.0, 1.0))
 
         # Determine status
         if correlation >= self.config.lip_sync_threshold:

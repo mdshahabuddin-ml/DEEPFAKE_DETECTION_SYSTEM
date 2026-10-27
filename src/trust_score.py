@@ -208,7 +208,7 @@ def analyze_video(detector, video_path: str, file_name: Optional[str] = None,
     vres = (detector.predict_video(video_path, max_frames=max_frames)
             if max_frames is not None else detector.predict_video(video_path))
 
-    if vres["prediction"] == "NO_FACE":
+    if vres.get("frames_with_face", 0) == 0:
         return TrustReport(
             media_type="video", file_name=file_name, verdict="No Face",
             trust_score=0.0, recommendation="No face detected — cannot assess.",
