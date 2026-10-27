@@ -1,0 +1,8 @@
+# Linux system packages needed on Streamlit Community Cloud (Debian).
+# OpenCV wheels require libGL/libglib at import time; sounddevice (live audio
+# features) needs PortAudio.
+libgl1
+libglib2.0-0
+libsm6
+libxext6
+libportaudio2

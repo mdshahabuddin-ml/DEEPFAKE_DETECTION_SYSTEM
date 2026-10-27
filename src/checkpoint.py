@@ -1,13 +1,17 @@
 """
 src/checkpoint.py
-Auto-download the model checkpoint on startup when it is missing locally.
+Auto-download model checkpoints on startup when they are missing locally.
 
-Two sources are supported (configured via environment variables / config.py):
-  1. A direct HTTPS URL   -> DEEPFAKE_CHECKPOINT_URL
+Two sources are supported (configured via environment variables / Streamlit
+secrets / config.py):
+  1. A direct HTTPS URL   -> DEEPFAKE_CHECKPOINT_URL          (visual model)
+                             DEEPFAKE_AUDIO_CHECKPOINT_URL    (audio model)
   2. A Hugging Face repo  -> DEEPFAKE_HF_REPO (+ DEEPFAKE_HF_FILENAME / REVISION)
+                             DEEPFAKE_AUDIO_HF_REPO (+ DEEPFAKE_AUDIO_HF_FILENAME)
 
-`ensure_checkpoint()` is called by the inference engine before loading weights,
-so every entry point (Gradio, Streamlit, FastAPI, CLI) benefits automatically.
+`ensure_checkpoint()` / `ensure_audio_checkpoint()` are called by the inference
+engine before loading weights, so every entry point (Gradio, Streamlit,
+FastAPI, CLI) benefits automatically.
 
 The URL downloader uses only the standard library. The Hugging Face path uses
 the optional `huggingface_hub` package and fails with a clear message if it is
@@ -25,13 +29,18 @@ from typing import Optional
 from urllib.error import URLError
 
 from src.config import (
-    CHECKPOINT_PATH, CHECKPOINT_URL, HF_FILENAME, HF_REPO, HF_REVISION,
+    CHECKPOINT_PATH, CHECKPOINT_URL, HF_REPO, HF_REVISION,
 )
 from src.logger import get_logger
 
 logger = get_logger(__name__)
 
 _EXPECTED_SHA256 = os.environ.get("DEEPFAKE_CHECKPOINT_SHA256", "").strip().lower()
+
+# Audio-model download sources (visual sources are in config.py).
+AUDIO_CHECKPOINT_URL: str = os.environ.get("DEEPFAKE_AUDIO_CHECKPOINT_URL", "").strip()
+AUDIO_HF_REPO: str = os.environ.get("DEEPFAKE_AUDIO_HF_REPO", "").strip()
+AUDIO_HF_FILENAME: str = os.environ.get("DEEPFAKE_AUDIO_HF_FILENAME", "").strip()
 
 
 class CheckpointDownloadError(RuntimeError):
@@ -157,10 +166,14 @@ def _download_from_hf(repo_id: str, filename: str, dest: Path,
 def ensure_checkpoint(path: Path = CHECKPOINT_PATH, *,
                       url: str = CHECKPOINT_URL,
                       hf_repo: str = HF_REPO,
-                      hf_filename: str = HF_FILENAME,
+                      hf_filename: Optional[str] = None,
                       hf_revision: Optional[str] = HF_REVISION) -> Optional[Path]:
     """
     Ensure a checkpoint exists at `path`, downloading it if configured.
+
+    hf_filename resolution: explicit argument > DEEPFAKE_HF_FILENAME env var >
+    the target file's own name (so a repo holding several checkpoints can serve
+    any local filename without extra config).
 
     Returns the path if it exists (already present or freshly downloaded), or
     None if the file is missing and no download source is configured. A
@@ -173,10 +186,36 @@ def ensure_checkpoint(path: Path = CHECKPOINT_PATH, *,
     if url:
         return _download_from_url(url, path)
     if hf_repo:
-        return _download_from_hf(hf_repo, hf_filename, path, revision=hf_revision)
+        filename = hf_filename or os.environ.get(
+            "DEEPFAKE_HF_FILENAME", "").strip() or path.name
+        return _download_from_hf(hf_repo, filename, path, revision=hf_revision)
 
     logger.info("No checkpoint at %s and no download source configured "
                 "(set DEEPFAKE_CHECKPOINT_URL or DEEPFAKE_HF_REPO).", path)
+    return None
+
+
+def ensure_audio_checkpoint(path: Path) -> Optional[Path]:
+    """
+    Like ensure_checkpoint(), but for the audio model.
+
+    Uses the dedicated DEEPFAKE_AUDIO_* sources (never the visual ones, so the
+    wrong weights can't be downloaded). Returns None when missing and
+    unconfigured; raises CheckpointDownloadError when a source fails.
+    """
+    path = Path(path)
+    if path.exists():
+        return path
+
+    if AUDIO_CHECKPOINT_URL:
+        return _download_from_url(AUDIO_CHECKPOINT_URL, path)
+    if AUDIO_HF_REPO:
+        filename = AUDIO_HF_FILENAME or path.name
+        return _download_from_hf(AUDIO_HF_REPO, filename, path)
+
+    logger.info("No audio checkpoint at %s and no download source configured "
+                "(set DEEPFAKE_AUDIO_CHECKPOINT_URL or DEEPFAKE_AUDIO_HF_REPO).",
+                path)
     return None
 
 

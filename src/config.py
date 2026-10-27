@@ -9,9 +9,31 @@ All paths, model settings, and runtime constants live here so every module
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
 
-import torch
+
+def _mirror_streamlit_secrets() -> None:
+    """Copy .streamlit/secrets.toml entries into os.environ (never overriding).
+
+    Streamlit Community Cloud exposes secrets as a TOML file, not as real
+    environment variables — so os.getenv() would miss them. Called only when
+    running under Streamlit (streamlit is imported before src.* by app entry
+    points), keeping CLI/API startup untouched. Real env vars always win.
+    """
+    if "streamlit" not in sys.modules:
+        return
+    try:
+        import streamlit as st
+        for key in st.secrets:
+            os.environ.setdefault(str(key), str(st.secrets[key]))
+    except Exception:
+        pass  # no secrets file present / not in a script context
+
+
+_mirror_streamlit_secrets()
+
+import torch  # noqa: E402  (must come after the secrets mirror)
 
 # ---------------------------------------------------------------------------
 # Project paths

@@ -12,6 +12,7 @@ import os
 import time
 import tempfile
 from datetime import datetime
+from pathlib import Path
 from typing import Optional, List, Tuple
 
 import streamlit as st
@@ -23,6 +24,10 @@ from PIL import Image
 sys.path.append(".")
 
 from src.model import build_model, load_checkpoint
+from src.config import PROJECT_ROOT
+from src.checkpoint import (
+    CheckpointDownloadError, ensure_audio_checkpoint, ensure_checkpoint,
+)
 from src.dataset import get_val_transforms
 from src.gradcam_utils import generate_gradcam_overlay
 from src.inference import FaceDetector
@@ -704,12 +709,35 @@ st.markdown("""
 # ---------------------------------------------------------------------------
 # Cached loaders
 # ---------------------------------------------------------------------------
+def _resolve_local(path_str: str) -> Path:
+    """Resolve a possibly-relative model path against the project root."""
+    p = Path(path_str)
+    return p if p.is_absolute() else PROJECT_ROOT / p
+
+
 @st.cache_resource
 def load_model() -> Tuple[torch.nn.Module, str]:
     try:
         device = "cuda" if torch.cuda.is_available() else "cpu"
+        ckpt = _resolve_local(CHECKPOINT_PATH)
+        try:
+            ensure_checkpoint(ckpt)
+        except CheckpointDownloadError as exc:
+            raise RuntimeError(
+                f"Model checkpoint download failed: {exc}\n\n"
+                f"Expected: {ckpt}\n"
+                "Set DEEPFAKE_CHECKPOINT_URL or DEEPFAKE_HF_REPO (Streamlit "
+                "Settings > Secrets), or add the .pth to models/."
+            ) from exc
+        if not ckpt.exists():
+            raise RuntimeError(
+                f"Model checkpoint not found: {ckpt}\n\n"
+                "Place the trained .pth there, or set DEEPFAKE_CHECKPOINT_URL / "
+                "DEEPFAKE_HF_REPO in Streamlit Settings > Secrets to download "
+                "it automatically."
+            )
         model = build_model(MODEL_NAME, pretrained=False)
-        model = load_checkpoint(model, CHECKPOINT_PATH)
+        model = load_checkpoint(model, str(ckpt))
         model.to(device)
         model.eval()
         return model, device
@@ -730,7 +758,24 @@ def load_face_detector() -> FaceDetector:
 @st.cache_resource
 def load_audio_model():
     try:
-        return load_audio_detector(AUDIO_MODEL_NAME, AUDIO_CHECKPOINT_PATH)
+        ckpt = _resolve_local(AUDIO_CHECKPOINT_PATH)
+        try:
+            ensure_audio_checkpoint(ckpt)
+        except CheckpointDownloadError as exc:
+            raise RuntimeError(
+                f"Audio checkpoint download failed: {exc}\n\n"
+                f"Expected: {ckpt}\n"
+                "Set DEEPFAKE_AUDIO_CHECKPOINT_URL or DEEPFAKE_AUDIO_HF_REPO "
+                "(Streamlit Settings > Secrets), or add the .pth to models/."
+            ) from exc
+        if not ckpt.exists():
+            raise RuntimeError(
+                f"Audio checkpoint not found: {ckpt}\n\n"
+                "Place the trained .pth there, or set "
+                "DEEPFAKE_AUDIO_CHECKPOINT_URL / DEEPFAKE_AUDIO_HF_REPO in "
+                "Streamlit Settings > Secrets to download it automatically."
+            )
+        return load_audio_detector(AUDIO_MODEL_NAME, str(ckpt))
     except Exception as e:
         logger.error("Failed to load audio model: %s", e)
         raise

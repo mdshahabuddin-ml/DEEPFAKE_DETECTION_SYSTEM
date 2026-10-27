@@ -1,0 +1,10 @@
+# Streamlit configuration (shared by local runs and Streamlit Community Cloud).
+
+[browser]
+gatherUsageStats = false
+
+[server]
+headless = true
+enableXsrfProtection = true
+fileWatcherType = "none"
+maxUploadSize = 200

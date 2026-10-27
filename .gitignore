@@ -49,3 +49,6 @@ env/
 .git_old_backup/
 
 .git_old_backup/
+
+# Streamlit secrets (never commit real secrets)
+.streamlit/secrets.toml

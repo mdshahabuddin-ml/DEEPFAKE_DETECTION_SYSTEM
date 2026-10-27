@@ -398,10 +398,28 @@ class DeepfakeDetector:
         )
 
         if not self.checkpoint_path.exists():
-            raise ModelNotFoundError(
-                f"Model checkpoint not found:\n"
-                f"{self.checkpoint_path}"
-            )
+            # Missing weights: try the configured auto-download source first
+            # (DEEPFAKE_CHECKPOINT_URL / DEEPFAKE_HF_REPO, incl. Streamlit
+            # secrets) before giving up.
+            from src.checkpoint import CheckpointDownloadError, ensure_checkpoint
+            try:
+                ensure_checkpoint(self.checkpoint_path)
+            except CheckpointDownloadError as exc:
+                raise ModelNotFoundError(
+                    f"Model checkpoint download failed:\n{exc}\n\n"
+                    f"Expected file: {self.checkpoint_path}\n"
+                    "Fix DEEPFAKE_CHECKPOINT_URL / DEEPFAKE_HF_REPO "
+                    "(env or Streamlit secrets), or place the .pth manually."
+                ) from exc
+            if not self.checkpoint_path.exists():
+                raise ModelNotFoundError(
+                    f"Model checkpoint not found:\n"
+                    f"{self.checkpoint_path}\n\n"
+                    "Place a trained .pth at that path, or configure an "
+                    "auto-download source (DEEPFAKE_CHECKPOINT_URL or "
+                    "DEEPFAKE_HF_REPO). On Streamlit Community Cloud, add it "
+                    "under Settings > Secrets."
+                )
 
         logger.info("=" * 60)
         logger.info("LOADING DEEPFAKE DETECTOR")

@@ -252,11 +252,22 @@ def resolve_checkpoint(explicit: Optional[str | Path] = None) -> Path:
         if legacy.exists():
             logger.info("Using legacy audio checkpoint: %s", legacy)
             return legacy
+    # Auto-download (DEEPFAKE_AUDIO_CHECKPOINT_URL / DEEPFAKE_AUDIO_HF_REPO,
+    # including Streamlit secrets) before giving up.
+    try:
+        from src.checkpoint import ensure_audio_checkpoint
+        downloaded = ensure_audio_checkpoint(AUDIO_CHECKPOINT)
+        if downloaded is not None and downloaded.exists():
+            return downloaded
+    except Exception as exc:  # noqa: BLE001 - fall through to the error below
+        logger.warning("Audio checkpoint auto-download failed: %s", exc)
     raise AudioModelNotFoundError(
         "No trained audio checkpoint found.\n"
         f"Expected: {AUDIO_CHECKPOINT}\n"
         "Train one with: python -m src.train_audio "
-        "--data_root data/audio --epochs 15"
+        "--data_root data/audio --epochs 15\n"
+        "Or configure DEEPFAKE_AUDIO_CHECKPOINT_URL / DEEPFAKE_AUDIO_HF_REPO "
+        "(env or Streamlit secrets) to download it automatically."
     )
 
 
